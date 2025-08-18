@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { NextDNSAccount, NextDNSCategory, NextDNSSyncLog } from "@/types";
+import { CategoryReflectionWall } from "@/components/CategoryReflectionWall";
 
 export function NextDNSConfig() {
   const { user } = useAuth();
@@ -41,6 +42,14 @@ export function NextDNSConfig() {
     profileName: 'Dopamine Detox'
   });
   const [showSetupForm, setShowSetupForm] = useState(false);
+  
+  // Reflection wall state
+  const [showReflectionWall, setShowReflectionWall] = useState(false);
+  const [pendingCategoryChange, setPendingCategoryChange] = useState<{
+    categoryId: string;
+    categoryName: string;
+    targetState: boolean;
+  } | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -138,6 +147,24 @@ export function NextDNSConfig() {
   };
 
   const handleCategoryToggle = async (categoryId: string, isBlocked: boolean) => {
+    const category = categories.find(cat => cat.category_id === categoryId);
+    
+    // If trying to unblock (turn off blocking), show reflection wall
+    if (category && category.is_blocked && !isBlocked) {
+      setPendingCategoryChange({
+        categoryId,
+        categoryName: category.category_name || categoryId,
+        targetState: isBlocked
+      });
+      setShowReflectionWall(true);
+      return;
+    }
+
+    // For blocking (turning on), proceed immediately
+    await executeCategoryToggle(categoryId, isBlocked);
+  };
+
+  const executeCategoryToggle = async (categoryId: string, isBlocked: boolean) => {
     // Optimistic UI update - update state immediately for instant feedback
     setCategories(categories.map(cat => 
       cat.category_id === categoryId 
@@ -174,6 +201,19 @@ export function NextDNSConfig() {
       console.error('Error updating category:', error);
       toast.error('Failed to update category - changes reverted');
     }
+  };
+
+  const handleReflectionWallCancel = () => {
+    setShowReflectionWall(false);
+    setPendingCategoryChange(null);
+  };
+
+  const handleReflectionWallConfirm = async (categoryId: string) => {
+    if (pendingCategoryChange) {
+      await executeCategoryToggle(categoryId, pendingCategoryChange.targetState);
+    }
+    setShowReflectionWall(false);
+    setPendingCategoryChange(null);
   };
 
   const handleSync = async () => {
@@ -234,6 +274,17 @@ export function NextDNSConfig() {
   }
 
   return (
+    <>
+      {/* Reflection Wall Modal */}
+      {showReflectionWall && pendingCategoryChange && (
+        <CategoryReflectionWall
+          categoryName={pendingCategoryChange.categoryName}
+          categoryId={pendingCategoryChange.categoryId}
+          onCancel={handleReflectionWallCancel}
+          onConfirmUnblock={handleReflectionWallConfirm}
+        />
+      )}
+      
     <div className="space-y-6">
       {/* NextDNS Account Status */}
       <Card className="bg-gray-900 border-gray-800">
@@ -470,5 +521,6 @@ export function NextDNSConfig() {
         </Card>
       )}
     </div>
+    </>
   );
 }

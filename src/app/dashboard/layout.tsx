@@ -4,8 +4,8 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
-import { Brain, LogOut } from 'lucide-react'
-import Link from 'next/link'
+import { LogOut } from 'lucide-react'
+import { Sidebar } from '@/components/Sidebar'
 
 export default function DashboardLayout({
   children,
@@ -42,36 +42,37 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-950">
-      {/* Header */}
-      <header className="border-b border-gray-800">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center space-x-2">
-            <Brain className="w-8 h-8 text-blue-500" />
-            <span className="text-xl font-bold text-white">Dopamine Detox</span>
-          </Link>
-          
-          <div className="flex items-center space-x-4">
-            <span className="text-gray-400">
-              {user?.emailAddresses?.[0]?.emailAddress}
-            </span>
-            <Button
-              onClick={handleSignOut}
-              variant="outline"
-              size="sm"
-              className="border-gray-700 text-white hover:bg-gray-800"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
+    <div className="min-h-screen bg-gray-950 flex">
+      {/* Sidebar */}
+      <Sidebar />
+      
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="border-b border-gray-800">
+          <div className="px-4 py-4 md:px-6 lg:px-8 flex items-center justify-end">
+            <div className="flex items-center space-x-2 md:space-x-4">
+              <span className="text-gray-400 text-sm md:text-base hidden sm:block">
+                {user?.emailAddresses?.[0]?.emailAddress}
+              </span>
+              <Button
+                onClick={handleSignOut}
+                variant="outline"
+                size="sm"
+                className="border-gray-700 text-white hover:bg-gray-800"
+              >
+                <LogOut className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">Sign Out</span>
+              </Button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {children}
-      </main>
+        {/* Main Content */}
+        <main className="flex-1 px-4 py-8 md:px-6 lg:px-8 min-w-0">
+          {children}
+        </main>
+      </div>
     </div>
   )
 }

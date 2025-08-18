@@ -139,3 +139,51 @@ export interface AuthSession {
   expires_in: number
   user: AuthUser
 }
+
+// Habit Tracking Types
+export interface Habit {
+  id: string
+  user_id: string
+  name: string
+  description?: string
+  emoji: string
+  is_active: boolean
+  start_date: string // Format: "YYYY-MM-DD"
+  created_at: string
+  updated_at: string
+}
+
+export interface HabitEntry {
+  id: string
+  habit_id: string
+  user_id: string
+  completion_date: string // Format: "YYYY-MM-DD"
+  completed: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface HabitStats {
+  habit_id: string
+  current_streak: number
+  max_streak: number
+  consistency_percent: number
+  badge_level: 'none' | 'getting_started' | 'spark' | 'steady' | 'on_fire' | 'unstoppable'
+}
+
+export interface HabitOverview {
+  total_habits: number
+  min_current_streak: number
+  avg_consistency: number
+  highest_badge: 'none' | 'getting_started' | 'spark' | 'steady' | 'on_fire' | 'unstoppable'
+}
+
+export interface HabitWithStats extends Habit {
+  stats: HabitStats
+  today_completed: boolean
+}
+
+export interface HabitCalendarEntry {
+  date: string
+  completed: boolean
+}

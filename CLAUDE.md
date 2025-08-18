@@ -51,6 +51,13 @@ Block entire categories of distracting content:
 
 *Powered by NextDNS for network-level filtering across all devices*
 
+### 📊 Habit Tracking System
+Replace bad habits with better ones through visual and actionable tracking:
+- **Grid-based visualization** of habits throughout the day
+- **Daily habit tracking** with completion status
+- **Habit statistics** and progress insights
+- **Calendar view** for long-term progress visualization
+
 ## Key Technical Patterns
 
 ### Database Operations with RLS

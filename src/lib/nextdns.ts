@@ -14,21 +14,21 @@ interface NextDNSProfile {
   id: string;
   fingerprint?: string;
   name: string;
-  setup?: any;
-  security?: any;
-  privacy?: any;
+  setup?: unknown;
+  security?: unknown;
+  privacy?: unknown;
   parentalControl: {
     safeSearch: boolean;
     youtubeRestrictedMode: boolean;
     blockBypass: boolean;
     services: string[];
     categories: { id: string; active: boolean }[];
-    recreation?: any;
+    recreation?: unknown;
   };
-  settings?: any;
+  settings?: unknown;
   denylist: { id: string; active: boolean }[];
   allowlist: string[];
-  rewrites?: any[];
+  rewrites?: unknown[];
 }
 
 interface NextDNSCategory {
