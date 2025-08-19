@@ -58,15 +58,15 @@ export function NextDNSConfig() {
       const [accountRes, categoriesRes, syncLogRes] = await Promise.all([
         fetch('/api/nextdns/account').catch((error) => {
           console.error('Failed to fetch account:', error);
-          return { ok: false };
+          return new Response(null, { status: 500 });
         }),
         fetch('/api/nextdns/categories').catch((error) => {
           console.error('Failed to fetch categories:', error);
-          return { ok: false };
+          return new Response(null, { status: 500 });
         }),
         fetch('/api/nextdns/sync').catch((error) => {
           console.error('Failed to fetch sync log:', error);
-          return { ok: false };
+          return new Response(null, { status: 500 });
         })
       ]);
 

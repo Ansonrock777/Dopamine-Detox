@@ -68,6 +68,18 @@ export interface NextDNSAccount {
   updated_at: string
 }
 
+// Website rule used by the UI for time-based blocking configuration
+export interface WebsiteRule {
+  id: string
+  user_id: string
+  url: string
+  start_time: string // HH:MM
+  end_time: string   // HH:MM
+  action: 'block'
+  is_active: boolean
+  created_at: string
+}
+
 export interface NextDNSCategory {
   id: string
   user_id: string
@@ -168,6 +180,7 @@ export interface HabitStats {
   current_streak: number
   max_streak: number
   consistency_percent: number
+  total_checkins: number
   badge_level: 'none' | 'getting_started' | 'spark' | 'steady' | 'on_fire' | 'unstoppable'
 }
 

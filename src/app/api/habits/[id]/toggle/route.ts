@@ -6,7 +6,7 @@ import { getTodayLocalDate } from '@/lib/timezone'
 // POST /api/habits/[id]/toggle - Toggle habit completion for today or specific date
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -15,7 +15,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       return NextResponse.json(

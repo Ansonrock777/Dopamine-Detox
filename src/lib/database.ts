@@ -1,5 +1,5 @@
 import { supabase, supabaseAdmin } from './supabase'
-import type { BlockedWebsite, FocusPreset, Timer, WebsiteRule, Habit, HabitStats, HabitOverview, HabitWithStats, HabitCalendarEntry } from '@/types'
+import type { BlockedWebsite, FocusPreset, Timer, WebsiteRule, Habit, HabitStats, HabitOverview, HabitWithStats, HabitCalendarEntry, HabitEntry } from '@/types'
 import { getTodayLocalDate } from './timezone'
 import { calculateHabitStats } from './streak-utils'
 
@@ -726,7 +726,8 @@ export async function getHabitEntries(habitId: string, userId: string, startDate
   try {
     console.log('Getting habit entries for habit:', habitId)
     
-    let query = supabaseAdmin
+    const client = supabaseAdmin ?? supabase
+    let query = client
       .from('habit_entries')
       .select('id, habit_id, user_id, completion_date, completed')
       .eq('habit_id', habitId)
@@ -755,8 +756,10 @@ export async function getHabitEntries(habitId: string, userId: string, startDate
       habit_id: entry.habit_id,
       user_id: entry.user_id,
       completion_date: entry.completion_date,
-      completed: entry.completed
-    }))
+      completed: entry.completed,
+      created_at: entry.completion_date + 'T00:00:00.000Z',
+      updated_at: entry.completion_date + 'T00:00:00.000Z'
+    })) as HabitEntry[]
   } catch (error) {
     console.error('Error in getHabitEntries:', error)
     throw error
@@ -772,7 +775,8 @@ export async function getHabitStats(habitId: string, userId: string): Promise<Ha
     const entries = await getHabitEntries(habitId, userId)
     
     // Get habit details to get the start_date using admin client
-    const { data: habitData, error: habitError } = await supabaseAdmin
+    const adminOrClient = supabaseAdmin ?? supabase
+    const { data: habitData, error: habitError } = await adminOrClient
       .from('habits')
       .select('start_date')
       .eq('id', habitId)
@@ -826,11 +830,11 @@ export async function getUserHabitOverview(userId: string): Promise<HabitOvervie
     
     // Find highest badge level
     const badgeOrder = ['none', 'getting_started', 'spark', 'steady', 'on_fire', 'unstoppable']
-    const highestBadge = allStats.reduce((highest, current) => {
+    const highestBadge = allStats.reduce<'none' | 'getting_started' | 'spark' | 'steady' | 'on_fire' | 'unstoppable'>((highest, current) => {
       const currentIndex = badgeOrder.indexOf(current.badge_level)
       const highestIndex = badgeOrder.indexOf(highest)
       return currentIndex > highestIndex ? current.badge_level : highest
-    }, 'none' as const)
+    }, 'none')
     
     return {
       total_habits: totalHabits,
@@ -871,7 +875,8 @@ export async function getHabitCalendarData(userId: string, habitId: string, star
       console.log('New calendar function not available, falling back to getHabitEntries:', newFunctionError)
       
       // Fallback to the original getHabitEntries function
-      return await getHabitEntries(habitId, userId, startDate, endDate)
+      const entries = await getHabitEntries(habitId, userId, startDate, endDate)
+      return entries.map(e => ({ date: e.completion_date, completed: e.completed }))
     }
   } catch (error) {
     console.error('Error in getHabitCalendarData:', error)
@@ -1013,6 +1018,7 @@ export async function getHabitsWithStats(userId: string): Promise<HabitWithStats
           current_streak: 0,
           max_streak: 0,
           consistency_percent: 0,
+          total_checkins: 0,
           badge_level: 'none' as const
         }
         

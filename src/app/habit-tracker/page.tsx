@@ -33,33 +33,41 @@ export default function HabitTrackerPage() {
     try {
       setLoading(true);
       setError(null); // Clear any previous errors
-      
+
       console.log("CLIENT: Starting loadHabits...");
       console.log("CLIENT: Making fetch request to /api/habits");
-      
+
       const response = await fetch("/api/habits");
-      
+
       console.log("CLIENT: Response received:", {
         status: response.status,
         statusText: response.statusText,
-        ok: response.ok
+        ok: response.ok,
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}: ${response.statusText}` }));
+        const errorData = await response.json().catch(() => ({
+          error: `HTTP ${response.status}: ${response.statusText}`,
+        }));
         console.error("CLIENT: API Error:", response.status, errorData);
-        throw new Error(errorData.error || `Failed to load habits: ${response.status}`);
+        throw new Error(
+          errorData.error || `Failed to load habits: ${response.status}`
+        );
       }
 
       const data = await response.json();
       console.log("CLIENT: Data received:", data);
       console.log("CLIENT: Habits count:", data.habits?.length || 0);
-      
+
       setHabits(sortHabits(data.habits || []));
       console.log("CLIENT: Habits set successfully");
     } catch (error) {
       console.error("CLIENT: Error loading habits:", error);
-      setError(error instanceof Error ? error.message : "Failed to load habits. Please try again.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to load habits. Please try again."
+      );
     } finally {
       setLoading(false);
       console.log("CLIENT: loadHabits completed");
@@ -123,8 +131,10 @@ export default function HabitTrackerPage() {
       stats: {
         habit_id: newHabit.id,
         current_streak: 0,
+        max_streak: 0,
         consistency_percent: 0,
         total_checkins: 0,
+        badge_level: "none",
       },
       today_completed: false,
     };

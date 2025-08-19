@@ -23,7 +23,7 @@ export function calculateCurrentStreak(entries: HabitEntry[] | HabitCalendarEntr
   )
 
   let streak = 0
-  let currentDate = new Date(today)
+  const currentDate = new Date(today)
 
   // If today is completed, start from today; otherwise start from yesterday
   if (!completedDates.has(today)) {
@@ -159,18 +159,25 @@ export function calculateHabitStats(
   current_streak: number
   max_streak: number
   consistency_percent: number
+  total_checkins: number
   badge_level: 'none' | 'getting_started' | 'spark' | 'steady' | 'on_fire' | 'unstoppable'
 } {
   const currentStreak = calculateCurrentStreak(entries)
   const maxStreak = calculateMaxStreak(entries)
   const consistency = calculateConsistency(entries, habitStartDate)
   const badgeLevel = getBadgeLevel(maxStreak)
+  const uniqueCompletedDays = new Set(
+    entries
+      .filter(e => e.completed)
+      .map(e => ('completion_date' in e ? e.completion_date : e.date))
+  ).size
 
   return {
     habit_id: habitId,
     current_streak: currentStreak,
     max_streak: maxStreak,
     consistency_percent: consistency,
+    total_checkins: uniqueCompletedDays,
     badge_level: badgeLevel
   }
 }

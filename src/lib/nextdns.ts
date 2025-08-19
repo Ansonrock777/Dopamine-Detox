@@ -99,7 +99,7 @@ export class NextDNSClient {
 
     // Handle empty responses (common for 204 No Content)
     if (!responseText || responseText.trim() === '') {
-      return {}; // Return empty object for successful operations with no content
+      return (undefined as unknown) as T
     }
 
     // Try to parse JSON
@@ -119,9 +119,12 @@ export class NextDNSClient {
   }
 
   async getProfile(profileId: string): Promise<NextDNSProfile> {
-    const response = await this.request<{data: NextDNSProfile}>(`/profiles/${profileId}`);
-    // NextDNS returns profiles wrapped in a "data" object
-    return response.data || response as NextDNSProfile;
+    const response = await this.request<{data: NextDNSProfile} | NextDNSProfile>(`/profiles/${profileId}`);
+    // If the response has a data field, use it. Otherwise assume it's the profile directly.
+    if (typeof (response as unknown as { data?: NextDNSProfile }).data !== 'undefined') {
+      return (response as { data: NextDNSProfile }).data
+    }
+    return response as NextDNSProfile
   }
 
   async createProfile(name: string): Promise<NextDNSProfile> {
@@ -131,7 +134,7 @@ export class NextDNSClient {
     });
   }
 
-  async updateProfile(profileId: string, config: Partial<NextDNSProfile['configuration']>): Promise<NextDNSProfile> {
+  async updateProfile(profileId: string, config: Partial<NextDNSProfile>): Promise<NextDNSProfile> {
     return this.request<NextDNSProfile>(`/profiles/${profileId}`, {
       method: 'PATCH',
       body: JSON.stringify(config),
@@ -315,14 +318,14 @@ export class NextDNSClient {
 
   async getBlockedServices(profileId: string): Promise<string[]> {
     const profile = await this.getProfile(profileId);
-    return profile?.configuration?.parentalControl?.services || [];
+    return profile?.parentalControl?.services || [];
   }
 
   async blockService(profileId: string, serviceId: string): Promise<void> {
     const profile = await this.getProfile(profileId);
     
     // Get the current parental control configuration
-    const currentParentalControl = profile?.configuration?.parentalControl || {};
+    const currentParentalControl = profile?.parentalControl || {};
     
     // Get current services and add the new one
     const services = [...(currentParentalControl.services || [])];
@@ -346,7 +349,7 @@ export class NextDNSClient {
     const profile = await this.getProfile(profileId);
     
     // Get the current parental control configuration
-    const currentParentalControl = profile?.configuration?.parentalControl || {};
+    const currentParentalControl = profile?.parentalControl || {};
     
     // Get current services and remove the specified one
     const services = [...(currentParentalControl.services || [])];

@@ -344,7 +344,8 @@ export async function getNextDNSCategories(userId: string): Promise<NextDNSCateg
     return await executeWithContext(
       userId,
       async (client) => {
-        const { data, error } = await client
+        const db = client ?? supabase
+        const { data, error } = await db
           .from('nextdns_categories')
           .select('*')
           .eq('user_id', userId)
@@ -378,7 +379,8 @@ export async function updateNextDNSCategory(
     return await executeWithContext(
       userId,
       async (client) => {
-        const { data, error } = await client
+        const db = client ?? supabase
+        const { data, error } = await db
           .from('nextdns_categories')
           .update({ 
             is_blocked: isBlocked,
@@ -427,7 +429,8 @@ export async function initializeNextDNSCategories(userId: string): Promise<void>
     await executeWithContext(
       userId,
       async (client) => {
-        const { error } = await client
+        const db = client ?? supabase
+        const { error } = await db
           .from('nextdns_categories')
           .upsert(
             categories.map(cat => ({
@@ -617,7 +620,8 @@ export async function logNextDNSOperation(
     await executeWithContext(
       userId,
       async (client) => {
-        const { error } = await client
+        const db = client ?? supabase
+        const { error } = await db
           .from('nextdns_sync_log')
           .insert([{
             user_id: userId,
@@ -651,7 +655,8 @@ export async function getNextDNSSyncLog(userId: string): Promise<NextDNSSyncLog[
     return await executeWithContext(
       userId,
       async (client) => {
-        const { data, error } = await client
+        const db = client ?? supabase
+        const { data, error } = await db
           .from('nextdns_sync_log')
           .select('*')
           .eq('user_id', userId)
@@ -693,7 +698,8 @@ async function getBlockedWebsites(userId: string) {
     return await executeWithContext(
       userId,
       async (client) => {
-        const { data, error } = await client
+        const db = client ?? supabase
+        const { data, error } = await db
           .from('blocked_websites')
           .select('*')
           .eq('user_id', userId)

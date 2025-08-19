@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Brain, Home, Settings, Target } from 'lucide-react'
+import { Brain, Home, BookOpen, Target } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 
@@ -18,9 +18,9 @@ const navigationItems = [
     icon: Target,
   },
   {
-    name: 'Settings',
-    href: '/dashboard/settings',
-    icon: Settings,
+    name: 'Setup Instructions',
+    href: '/dashboard/setup-instructions',
+    icon: BookOpen,
   },
 ]
 

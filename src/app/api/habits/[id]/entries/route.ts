@@ -4,8 +4,8 @@ import { getHabitEntries } from '@/lib/database'
 
 // GET /api/habits/[id]/entries - Get habit entries for calendar visualization
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+	request: NextRequest,
+	{ params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = params
+    const { id } = await params
     
     if (!id) {
       return NextResponse.json(

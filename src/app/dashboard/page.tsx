@@ -40,7 +40,7 @@ export default function DashboardPage() {
         getBlockedWebsites(user.id),
         fetch("/api/nextdns/account").catch((error) => {
           console.error("Failed to fetch NextDNS account:", error);
-          return { ok: false };
+          return new Response(null, { status: 500 });
         }),
       ]);
 
@@ -132,7 +132,7 @@ export default function DashboardPage() {
       <div id="device-setup">
         <DeviceSetupGuide
           nextDnsProfileId={nextDnsAccount?.profile_id}
-          nextDnsAccountId={nextDnsAccount?.account_id}
+          nextDnsAccountId={nextDnsAccount?.id}
         />
       </div>
 

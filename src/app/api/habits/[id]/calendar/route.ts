@@ -3,8 +3,8 @@ import { auth } from "@clerk/nextjs/server";
 import { getHabitCalendarData } from "@/lib/database";
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+	request: NextRequest,
+	{ params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -24,7 +24,7 @@ export async function GET(
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
     
     const entries = await getHabitCalendarData(
       userId,
