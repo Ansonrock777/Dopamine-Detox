@@ -8,7 +8,7 @@ import { env } from '@/lib/env'
 import './globals.css'
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://dopaminedetox.app'),
+  metadataBase: new URL('https://dopaminedetox.in'),
   title: {
     default: 'Dopamine Detox - Take Back Control of Your Attention',
     template: '%s | Dopamine Detox'
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://dopaminedetox.app',
+    url: 'https://dopaminedetox.in',
     title: 'Dopamine Detox - Break Free From Digital Addiction',
     description: 'Network-level blocking that works across every device. Block social media, adult content, and addictive websites with NextDNS integration.',
     siteName: 'Dopamine Detox',
@@ -62,7 +62,7 @@ export const metadata: Metadata = {
     yahoo: 'your-yahoo-verification-code',
   },
   alternates: {
-    canonical: 'https://dopaminedetox.app',
+    canonical: 'https://dopaminedetox.in',
   },
 }
 

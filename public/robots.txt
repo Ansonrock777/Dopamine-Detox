@@ -2,7 +2,7 @@ User-agent: *
 Allow: /
 
 # Sitemap
-Sitemap: https://dopaminedetox.app/sitemap.xml
+Sitemap: https://dopaminedetox./sitemap.xml
 
 # Block access to admin/auth pages
 Disallow: /dashboard/
