@@ -57,23 +57,23 @@ export function HabitCard({
 
   return (
     <Card className="w-full bg-gray-900 border-gray-700">
-      <CardHeader className="pb-4 px-6 pt-6">
+      <CardHeader className="pb-4 px-4 sm:px-6 pt-4 sm:pt-6">
         <div className="flex items-start justify-between">
-          <div className="flex items-start gap-3">
-            <span className="text-2xl">{habit.emoji}</span>
-            <div>
-              <CardTitle className="text-lg font-semibold text-white">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <span className="text-xl sm:text-2xl flex-shrink-0">{habit.emoji}</span>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-base sm:text-lg font-semibold text-white truncate">
                 {habit.name}
               </CardTitle>
               {habit.description && (
-                <CardDescription className="text-sm text-gray-400 mt-1">
+                <CardDescription className="text-sm text-gray-400 mt-1 line-clamp-2">
                   {habit.description}
                 </CardDescription>
               )}
             </div>
           </div>
           <CardAction>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <Checkbox
                 checked={todayCompleted}
                 onCheckedChange={handleToggleToday}
@@ -100,27 +100,27 @@ export function HabitCard({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-5 px-6 pb-6">
+      <CardContent className="space-y-4 sm:space-y-5 px-4 sm:px-6 pb-4 sm:pb-6">
         {/* Statistics */}
-        <div className="grid grid-cols-3 gap-4 text-center">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
           <div>
-            <div className="text-2xl font-bold text-white flex items-center justify-center gap-1">
-              {(habit.stats?.current_streak || 0) > 0 && <span>🔥</span>}
+            <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center gap-1">
+              {(habit.stats?.current_streak || 0) > 0 && <span className="text-sm sm:text-base">🔥</span>}
               {habit.stats?.current_streak || 0}
             </div>
             <div className="text-xs text-gray-400">Streak</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-white">
+            <div className="text-xl sm:text-2xl font-bold text-white">
               {Math.round(habit.stats?.consistency_percent || 0)}%
             </div>
             <div className="text-xs text-gray-400">Consistency</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-white flex items-center justify-center gap-1">
-              <span className="text-lg">{getBadgeInfo(habit.stats?.badge_level).icon}</span>
+            <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center gap-1">
+              <span className="text-base sm:text-lg">{getBadgeInfo(habit.stats?.badge_level).icon}</span>
               <div className="flex flex-col">
-                <span className="text-sm leading-tight">{getBadgeInfo(habit.stats?.badge_level).name}</span>
+                <span className="text-xs sm:text-sm leading-tight">{getBadgeInfo(habit.stats?.badge_level).name}</span>
                 <span className="text-xs text-gray-400 leading-tight">{habit.stats?.max_streak || 0} best</span>
               </div>
             </div>
@@ -129,7 +129,7 @@ export function HabitCard({
         </div>
 
         {/* GitHub-style Calendar Grid */}
-        <div className="w-full mt-4 pt-4 border-t border-gray-700/50 -mx-6 px-6">
+        <div className="w-full mt-4 pt-4 border-t border-gray-700/50 -mx-4 sm:-mx-6 px-4 sm:px-6">
           <div className="overflow-x-auto custom-scrollbar">
             <HabitCalendarGrid
               habitId={habit.id}

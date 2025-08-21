@@ -90,17 +90,17 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col space-y-4">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2 leading-tight">
             Welcome back,{" "}
             {user?.firstName ||
               user?.emailAddresses?.[0]?.emailAddress?.split("@")[0]}
             !
           </h1>
-          <p className="text-gray-400">
+          <p className="text-gray-400 text-sm md:text-base leading-relaxed">
             Manage your digital wellness with NextDNS network-level blocking,
             category filtering, and customizable focus rules.
           </p>
@@ -108,28 +108,30 @@ export default function DashboardPage() {
       </div>
 
       {/* Enhanced Onboarding */}
-      <EnhancedOnboarding
-        nextDnsConnected={!!nextDnsAccount}
-        hasBlockedWebsites={blockedSites.length > 0}
-        onScrollToSection={(section) => {
-          const element = document.getElementById(section);
-          if (element) {
-            element.scrollIntoView({ behavior: "smooth" });
-          }
-        }}
-      />
+      <div className="w-full">
+        <EnhancedOnboarding
+          nextDnsConnected={!!nextDnsAccount}
+          hasBlockedWebsites={blockedSites.length > 0}
+          onScrollToSection={(section) => {
+            const element = document.getElementById(section);
+            if (element) {
+              element.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }}
+        />
+      </div>
 
 
 
 
 
       {/* NextDNS Configuration */}
-      <div id="nextdns-config">
+      <div id="nextdns-config" className="w-full">
         <NextDNSConfig />
       </div>
 
       {/* Device Setup Guide */}
-      <div id="device-setup">
+      <div id="device-setup" className="w-full">
         <DeviceSetupGuide
           nextDnsProfileId={nextDnsAccount?.profile_id}
           nextDnsAccountId={nextDnsAccount?.id}
@@ -137,7 +139,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Website Blocking Interface */}
-      <div id="website-blocking">
+      <div id="website-blocking" className="w-full">
         <WebsiteBlockingInterface />
       </div>
 

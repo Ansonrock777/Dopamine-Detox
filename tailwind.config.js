@@ -17,6 +17,26 @@ module.exports = {
       },
     },
     extend: {
+      spacing: {
+        '18': '4.5rem',
+        '88': '22rem',
+        'safe-area-pb': 'env(safe-area-inset-bottom)'
+      },
+      minHeight: {
+        '11': '2.75rem', // 44px - minimum touch target
+        '12': '3rem',    // 48px - comfortable touch target
+      },
+      minWidth: {
+        '11': '2.75rem', // 44px - minimum touch target
+        '12': '3rem',    // 48px - comfortable touch target
+      },
+      fontSize: {
+        'xs': ['0.75rem', { lineHeight: '1.5' }],
+        'sm': ['0.875rem', { lineHeight: '1.5' }],
+        'base': ['1rem', { lineHeight: '1.6' }],
+        'lg': ['1.125rem', { lineHeight: '1.6' }],
+        'xl': ['1.25rem', { lineHeight: '1.6' }],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -52,6 +72,11 @@ module.exports = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      screens: {
+        'xs': '475px',
+        'touch': { 'raw': '(hover: none)' }, // Mobile devices
+        'hover': { 'raw': '(hover: hover)' }, // Desktop devices
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -70,6 +95,8 @@ module.exports = {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "slide-in": "slide-in 0.3s ease-out",
+        "slide-out": "slide-out 0.3s ease-out",
       },
     },
   },

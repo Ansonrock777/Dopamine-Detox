@@ -112,63 +112,63 @@ export function EnhancedOnboarding({
   return (
     <Card className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 border-blue-500/30">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-              <Info className="w-4 h-4 text-white" />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 sm:w-8 sm:h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <Info className="w-5 h-5 sm:w-4 sm:h-4 text-white" />
             </div>
-            <div>
-              <CardTitle className="text-white">Welcome to Dopamine Detox</CardTitle>
-              <p className="text-gray-400 text-sm">
+            <div className="min-w-0">
+              <CardTitle className="text-white text-lg sm:text-xl">Welcome to Dopamine Detox</CardTitle>
+              <p className="text-gray-400 text-sm sm:text-sm">
                 Let&apos;s get your digital wellness setup configured
               </p>
             </div>
           </div>
-          <Badge variant="outline" className="bg-blue-600/20 text-blue-300 border-blue-500/50">
+          <Badge variant="outline" className="bg-blue-600/20 text-blue-300 border-blue-500/50 self-start sm:self-auto">
             {completedSteps}/{steps.length} Complete
           </Badge>
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 sm:space-y-6">
         {/* Progress Bar */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-400">Setup Progress</span>
-            <span className="text-gray-400">{Math.round(progress)}%</span>
+            <span className="text-gray-400 font-medium">{Math.round(progress)}%</span>
           </div>
           <Progress 
             value={progress} 
-            className="h-2 bg-gray-800" 
+            className="h-3 sm:h-2 bg-gray-800" 
           />
         </div>
 
         {/* Steps */}
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {steps.map((step, index) => (
             <div
               key={step.id}
-              className={`flex items-center space-x-4 p-4 rounded-lg border transition-all cursor-pointer ${
+              className={`flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 rounded-lg border transition-all cursor-pointer min-h-[60px] sm:min-h-auto ${
                 step.completed
-                  ? 'bg-green-900/20 border-green-500/30 hover:bg-green-900/30'
+                  ? 'bg-green-900/20 border-green-500/30 hover:bg-green-900/30 active:bg-green-900/40'
                   : index === currentStep
-                  ? 'bg-blue-900/20 border-blue-500/30 hover:bg-blue-900/30'
-                  : 'bg-gray-800/30 border-gray-700/50 hover:bg-gray-800/50'
+                  ? 'bg-blue-900/20 border-blue-500/30 hover:bg-blue-900/30 active:bg-blue-900/40'
+                  : 'bg-gray-800/30 border-gray-700/50 hover:bg-gray-800/50 active:bg-gray-800/60'
               }`}
               onClick={() => handleStepClick(index, step)}
             >
               <div className="flex-shrink-0">
                 {step.completed ? (
-                  <CheckCircle className="w-6 h-6 text-green-400" />
+                  <CheckCircle className="w-6 h-6 sm:w-5 sm:h-5 text-green-400" />
                 ) : (
-                  <Circle className={`w-6 h-6 ${
+                  <Circle className={`w-6 h-6 sm:w-5 sm:h-5 ${
                     index === currentStep ? 'text-blue-400' : 'text-gray-500'
                   }`} />
                 )}
               </div>
               
               <div className="flex-shrink-0">
-                <step.icon className={`w-5 h-5 ${
+                <step.icon className={`w-6 h-6 sm:w-5 sm:h-5 ${
                   step.completed 
                     ? 'text-green-400' 
                     : index === currentStep 
@@ -178,20 +178,20 @@ export function EnhancedOnboarding({
               </div>
               
               <div className="flex-1 min-w-0">
-                <h4 className={`font-medium ${
+                <h4 className={`font-medium text-base sm:text-sm ${
                   step.completed ? 'text-green-300' : 'text-white'
                 }`}>
                   {step.title}
                   {step.optional && (
-                    <Badge variant="secondary" className="ml-2 text-xs">
+                    <Badge variant="secondary" className="ml-2 text-xs hidden sm:inline-flex">
                       Optional
                     </Badge>
                   )}
                 </h4>
-                <p className="text-gray-400 text-sm">{step.description}</p>
+                <p className="text-gray-400 text-sm sm:text-xs leading-relaxed">{step.description}</p>
               </div>
               
-              <ArrowRight className={`w-4 h-4 flex-shrink-0 ${
+              <ArrowRight className={`w-5 h-5 sm:w-4 sm:h-4 flex-shrink-0 ${
                 step.completed ? 'text-green-400' : 'text-gray-500'
               }`} />
             </div>
@@ -199,17 +199,17 @@ export function EnhancedOnboarding({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-700">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-4 border-t border-gray-700 space-y-3 sm:space-y-0">
           <Button
             variant="ghost"
             size="sm"
             onClick={dismissOnboarding}
-            className="text-gray-400 hover:text-white"
+            className="text-gray-400 hover:text-white min-h-[44px] sm:min-h-auto order-2 sm:order-1"
           >
             Dismiss Guide
           </Button>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-center sm:justify-end space-x-2 order-1 sm:order-2">
             {progress < 100 && (
               <Button
                 onClick={() => {
@@ -218,16 +218,16 @@ export function EnhancedOnboarding({
                     nextStep.action();
                   }
                 }}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700 min-h-[44px] sm:min-h-auto px-6"
               >
                 {currentStep === 0 ? 'Get Started' : 'Continue Setup'}
-                <ArrowRight className="w-4 h-4 ml-1" />
+                <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             )}
             
             {progress === 100 && (
               <div className="flex items-center space-x-2 text-green-400">
-                <CheckCircle className="w-4 h-4" />
+                <CheckCircle className="w-5 h-5 sm:w-4 sm:h-4" />
                 <span className="text-sm font-medium">Setup Complete!</span>
               </div>
             )}
@@ -235,21 +235,21 @@ export function EnhancedOnboarding({
         </div>
 
         {/* Help Links */}
-        <div className="text-center pt-2 border-t border-gray-700">
-          <p className="text-gray-500 text-xs mb-2">Need help?</p>
-          <div className="flex justify-center space-x-4 text-xs">
+        <div className="text-center pt-3 sm:pt-2 border-t border-gray-700">
+          <p className="text-gray-500 text-xs mb-3 sm:mb-2">Need help?</p>
+          <div className="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4 text-xs">
             <button
               onClick={() => window.open('https://help.nextdns.io', '_blank')}
-              className="text-blue-400 hover:text-blue-300 flex items-center"
+              className="text-blue-400 hover:text-blue-300 flex items-center justify-center min-h-[44px] sm:min-h-auto"
             >
-              <ExternalLink className="w-3 h-3 mr-1" />
+              <ExternalLink className="w-4 h-4 sm:w-3 sm:h-3 mr-2 sm:mr-1" />
               NextDNS Help
             </button>
             <button
               onClick={() => window.open('https://github.com/your-repo/issues', '_blank')}
-              className="text-blue-400 hover:text-blue-300 flex items-center"
+              className="text-blue-400 hover:text-blue-300 flex items-center justify-center min-h-[44px] sm:min-h-auto"
             >
-              <ExternalLink className="w-3 h-3 mr-1" />
+              <ExternalLink className="w-4 h-4 sm:w-3 sm:h-3 mr-2 sm:mr-1" />
               Support
             </button>
           </div>

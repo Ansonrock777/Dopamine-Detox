@@ -61,11 +61,11 @@ export function Sidebar() {
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  'flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300',
+                  'flex items-center px-3 py-3 rounded-lg text-sm font-medium transition-all duration-300 min-h-11 min-w-11',
                   isHovered ? 'space-x-3' : 'justify-center',
                   isActive
                     ? 'bg-blue-600 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800 active:bg-gray-700'
                 )}
                 title={!isHovered ? item.name : undefined}
               >
