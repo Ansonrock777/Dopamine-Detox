@@ -3,7 +3,6 @@
 import { useResponsiveNavigation } from '@/hooks/useResponsiveNavigation'
 import { Sidebar } from '@/components/Sidebar'
 import { BottomNavigation } from '@/components/BottomNavigation'
-import { MobileSidebar } from '@/components/MobileSidebar'
 import { cn } from '@/lib/utils'
 
 interface ResponsiveLayoutProps {
@@ -12,15 +11,12 @@ interface ResponsiveLayoutProps {
 }
 
 export function ResponsiveLayout({ children, header }: ResponsiveLayoutProps) {
-  const { isMobile, showMobileSidebar, toggleMobileSidebar, closeMobileSidebar } = useResponsiveNavigation()
+  const { isMobile } = useResponsiveNavigation()
 
   return (
     <div className="min-h-screen bg-gray-950 flex">
       {/* Desktop Sidebar */}
       {!isMobile && <Sidebar />}
-      
-      {/* Mobile Sidebar Drawer */}
-      <MobileSidebar isOpen={showMobileSidebar} onClose={closeMobileSidebar} />
       
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -42,7 +38,7 @@ export function ResponsiveLayout({ children, header }: ResponsiveLayoutProps) {
       </div>
       
       {/* Bottom Navigation - Mobile Only */}
-      {isMobile && <BottomNavigation onMenuClick={toggleMobileSidebar} />}
+      {isMobile && <BottomNavigation />}
     </div>
   )
 }

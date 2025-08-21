@@ -2,12 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Target, Menu } from 'lucide-react'
+import { Home, Target, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-interface BottomNavigationProps {
-  onMenuClick: () => void
-}
 
 const navigationItems = [
   {
@@ -21,14 +17,13 @@ const navigationItems = [
     icon: Target,
   },
   {
-    name: 'Menu',
-    href: '#',
-    icon: Menu,
-    isMenu: true
+    name: 'Setup',
+    href: '/dashboard/setup-instructions',
+    icon: Settings,
   },
 ]
 
-export function BottomNavigation({ onMenuClick }: BottomNavigationProps) {
+export function BottomNavigation() {
   const pathname = usePathname()
 
   return (
@@ -36,23 +31,7 @@ export function BottomNavigation({ onMenuClick }: BottomNavigationProps) {
       <div className="flex items-center justify-around h-16 px-2">
         {navigationItems.map((item) => {
           const Icon = item.icon
-          const isActive = pathname === item.href && !item.isMenu
-          
-          if (item.isMenu) {
-            return (
-              <button
-                key={item.name}
-                onClick={onMenuClick}
-                className={cn(
-                  'flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1 rounded-lg text-xs font-medium transition-colors',
-                  'text-gray-400 hover:text-white active:bg-gray-800'
-                )}
-              >
-                <Icon className="w-5 h-5 mb-1" />
-                <span className="text-[10px] leading-none">{item.name}</span>
-              </button>
-            )
-          }
+          const isActive = pathname === item.href
           
           return (
             <Link
