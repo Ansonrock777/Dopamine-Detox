@@ -11,7 +11,13 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { HabitCalendarGrid } from "@/components/HabitCalendarGrid";
 import type { HabitWithStats } from "@/types";
 import { cn } from "@/lib/utils";
@@ -87,13 +93,37 @@ export function HabitCard({
                 )}
               />
               {(onEdit || onDelete) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-8 h-8 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-8 h-8 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48 bg-gray-800 border-gray-700">
+                    {onEdit && (
+                      <DropdownMenuItem 
+                        onClick={() => onEdit(habit)}
+                        className="text-gray-300 hover:text-white hover:bg-gray-700 cursor-pointer"
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit Habit
+                      </DropdownMenuItem>
+                    )}
+                    {onDelete && (
+                      <DropdownMenuItem 
+                        onClick={() => onDelete(habit.id)}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-900/20 cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Habit
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
           </CardAction>

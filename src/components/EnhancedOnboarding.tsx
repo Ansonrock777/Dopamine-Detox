@@ -199,17 +199,8 @@ export function EnhancedOnboarding({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-4 border-t border-gray-700 space-y-3 sm:space-y-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={dismissOnboarding}
-            className="text-gray-400 hover:text-white min-h-[44px] sm:min-h-auto order-2 sm:order-1"
-          >
-            Dismiss Guide
-          </Button>
-          
-          <div className="flex items-center justify-center sm:justify-end space-x-2 order-1 sm:order-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center pt-4 border-t border-gray-700 space-y-3 sm:space-y-0">
+          <div className="flex items-center justify-center space-x-2">
             {progress < 100 && (
               <Button
                 onClick={() => {
@@ -234,26 +225,6 @@ export function EnhancedOnboarding({
           </div>
         </div>
 
-        {/* Help Links */}
-        <div className="text-center pt-3 sm:pt-2 border-t border-gray-700">
-          <p className="text-gray-500 text-xs mb-3 sm:mb-2">Need help?</p>
-          <div className="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4 text-xs">
-            <button
-              onClick={() => window.open('https://help.nextdns.io', '_blank')}
-              className="text-blue-400 hover:text-blue-300 flex items-center justify-center min-h-[44px] sm:min-h-auto"
-            >
-              <ExternalLink className="w-4 h-4 sm:w-3 sm:h-3 mr-2 sm:mr-1" />
-              NextDNS Help
-            </button>
-            <button
-              onClick={() => window.open('https://github.com/your-repo/issues', '_blank')}
-              className="text-blue-400 hover:text-blue-300 flex items-center justify-center min-h-[44px] sm:min-h-auto"
-            >
-              <ExternalLink className="w-4 h-4 sm:w-3 sm:h-3 mr-2 sm:mr-1" />
-              Support
-            </button>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );

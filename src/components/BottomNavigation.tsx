@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Home, Target, Settings } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Home, Target, BookOpen, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 
 const navigationItems = [
   {
@@ -19,12 +20,19 @@ const navigationItems = [
   {
     name: 'Setup',
     href: '/dashboard/setup-instructions',
-    icon: Settings,
+    icon: BookOpen,
   },
 ]
 
 export function BottomNavigation() {
   const pathname = usePathname()
+  const router = useRouter()
+  const { signOut } = useAuth()
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.push('/')
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-800 safe-area-pb z-50 md:hidden">
@@ -49,6 +57,15 @@ export function BottomNavigation() {
             </Link>
           )
         })}
+        
+        {/* Logout Button */}
+        <button
+          onClick={handleSignOut}
+          className="flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1 rounded-lg text-xs font-medium transition-colors text-gray-400 hover:text-white active:bg-gray-800"
+        >
+          <LogOut className="w-5 h-5 mb-1" />
+          <span className="text-[10px] leading-none">Logout</span>
+        </button>
       </div>
     </nav>
   )

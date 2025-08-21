@@ -4,6 +4,9 @@ import { ClerkProvider } from '@clerk/nextjs'
 import { dark } from '@clerk/themes'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
+import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
+import { PerformanceMonitor } from '@/components/PerformanceMonitor'
 import { env } from '@/lib/env'
 import './globals.css'
 
@@ -95,8 +98,11 @@ export default function RootLayout({
             enableSystem={false}
             disableTransitionOnChange
           >
+            <ServiceWorkerRegistration />
+            <PerformanceMonitor />
             {children}
             <Toaster />
+            <PWAInstallPrompt />
           </ThemeProvider>
         </body>
       </html>

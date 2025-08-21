@@ -5,10 +5,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { HabitCard } from "@/components/HabitCard";
 import { HabitStats } from "@/components/HabitStats";
 import { AddHabitForm } from "@/components/AddHabitForm";
+import { EditHabitForm } from "@/components/EditHabitForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Settings } from "lucide-react";
 import type { HabitWithStats, Habit } from "@/types";
 import { getTodayLocalDate } from "@/lib/timezone";
 
@@ -17,6 +17,8 @@ export default function HabitTrackerPage() {
   const [habits, setHabits] = useState<HabitWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingHabit, setEditingHabit] = useState<HabitWithStats | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   useEffect(() => {
     console.log("Auth state:", { authLoading, isSignedIn });
@@ -142,6 +144,50 @@ export default function HabitTrackerPage() {
     setHabits((prev) => sortHabits([habitWithStats, ...prev]));
   };
 
+  const handleDeleteHabit = async (habitId: string) => {
+    // Find the habit to get its name for confirmation
+    const habitToDelete = habits.find(h => h.id === habitId);
+    const habitName = habitToDelete?.name || 'this habit';
+
+    // Show confirmation dialog
+    if (!confirm(`Are you sure you want to delete "${habitName}"? This action cannot be undone and will remove all associated data.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/habits/${habitId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete habit');
+      }
+
+      // Remove the habit from local state
+      setHabits((prev) => prev.filter(habit => habit.id !== habitId));
+      
+      console.log('Habit deleted successfully');
+    } catch (error) {
+      console.error('Error deleting habit:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete habit');
+    }
+  };
+
+  const handleEditHabit = (habit: HabitWithStats) => {
+    setEditingHabit(habit);
+    setEditModalOpen(true);
+  };
+
+  const handleHabitUpdated = (updatedHabit: HabitWithStats) => {
+    setHabits(prev => 
+      sortHabits(
+        prev.map(habit => 
+          habit.id === updatedHabit.id ? updatedHabit : habit
+        )
+      )
+    );
+  };
+
   // Sort habits: uncompleted first, then completed (blurred)
   const sortHabits = (habitsList: HabitWithStats[]) => {
     return habitsList.sort((a, b) => {
@@ -173,21 +219,12 @@ export default function HabitTrackerPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <h1 className="text-2xl sm:text-3xl font-bold text-white">
             {habits.length} HABIT{habits.length !== 1 ? "S" : ""}
           </h1>
           <AddHabitForm onHabitAdded={handleHabitAdded} />
-        </div>
-        <div className="flex items-center gap-2 self-start sm:self-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-gray-400 hover:text-white hover:bg-gray-800"
-          >
-            <Settings className="w-4 h-4" />
-          </Button>
         </div>
       </div>
 
@@ -270,14 +307,8 @@ export default function HabitTrackerPage() {
               habit={habit}
               onToggleCompletion={handleToggleCompletion}
               isCompleted={habit.today_completed}
-              onEdit={(habit) => {
-                // TODO: Implement edit functionality
-                console.log("Edit habit:", habit);
-              }}
-              onDelete={(habitId) => {
-                // TODO: Implement delete functionality
-                console.log("Delete habit:", habitId);
-              }}
+              onEdit={handleEditHabit}
+              onDelete={handleDeleteHabit}
             />
           ))}
         </div>
@@ -295,6 +326,14 @@ export default function HabitTrackerPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Habit Modal */}
+      <EditHabitForm
+        habit={editingHabit}
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        onHabitUpdated={handleHabitUpdated}
+      />
     </div>
   );
 }
