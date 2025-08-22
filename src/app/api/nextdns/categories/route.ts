@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { getNextDNSCategories, updateNextDNSCategory, syncWithNextDNS, isNextDNSConfigured } from '@/lib/nextdns-database'
+import { getNextDNSCategories, updateNextDNSCategory, isNextDNSConfigured } from '@/lib/nextdns-database'
 
 // GET /api/nextdns/categories - Get user's NextDNS categories
 export async function GET() {

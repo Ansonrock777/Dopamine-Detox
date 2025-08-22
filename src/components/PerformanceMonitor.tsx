@@ -56,38 +56,40 @@ export function PerformanceMonitor() {
       // Largest Contentful Paint (LCP)
       const lcpObserver = new PerformanceObserver((entryList) => {
         const entries = entryList.getEntries()
-        const lastEntry = entries[entries.length - 1] as any
+        const lastEntry = entries[entries.length - 1] as PerformanceEntry & { startTime: number }
         metricsRef.current.lcp = lastEntry.startTime
         console.log('[Performance] LCP:', lastEntry.startTime)
       })
 
       try {
         lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] })
-      } catch (e) {
+      } catch (_e) {
         console.warn('[Performance] LCP observer not supported')
       }
 
       // First Input Delay (FID)
       const fidObserver = new PerformanceObserver((entryList) => {
         const entries = entryList.getEntries()
-        entries.forEach((entry: any) => {
-          metricsRef.current.fid = entry.processingStart - entry.startTime
-          console.log('[Performance] FID:', entry.processingStart - entry.startTime)
+        entries.forEach((entry) => {
+          const fidEntry = entry as PerformanceEntry & { processingStart: number; startTime: number }
+          metricsRef.current.fid = fidEntry.processingStart - fidEntry.startTime
+          console.log('[Performance] FID:', fidEntry.processingStart - fidEntry.startTime)
         })
       })
 
       try {
         fidObserver.observe({ entryTypes: ['first-input'] })
-      } catch (e) {
+      } catch (_e) {
         console.warn('[Performance] FID observer not supported')
       }
 
       // Cumulative Layout Shift (CLS)
       const clsObserver = new PerformanceObserver((entryList) => {
         const entries = entryList.getEntries()
-        entries.forEach((entry: any) => {
-          if (!entry.hadRecentInput) {
-            metricsRef.current.cls = (metricsRef.current.cls || 0) + entry.value
+        entries.forEach((entry) => {
+          const clsEntry = entry as PerformanceEntry & { hadRecentInput?: boolean; value: number }
+          if (!clsEntry.hadRecentInput) {
+            metricsRef.current.cls = (metricsRef.current.cls || 0) + clsEntry.value
           }
         })
         console.log('[Performance] CLS:', metricsRef.current.cls)
@@ -95,7 +97,7 @@ export function PerformanceMonitor() {
 
       try {
         clsObserver.observe({ entryTypes: ['layout-shift'] })
-      } catch (e) {
+      } catch (_e) {
         console.warn('[Performance] CLS observer not supported')
       }
 
@@ -159,8 +161,8 @@ export function PerformanceMonitor() {
     if ('caches' in window) {
       try {
         const cacheNames = await caches.keys()
-        let totalRequests = 0
-        let cacheHits = 0
+        const totalRequests = 0
+        const cacheHits = 0
 
         // This would need to be implemented with actual cache metrics
         // For now, we'll simulate based on service worker logs
@@ -241,8 +243,8 @@ export function PerformanceMonitor() {
     
     try {
       // Example: Google Analytics 4 event
-      if (typeof gtag !== 'undefined') {
-        gtag('event', 'pwa_performance', {
+      if (typeof window !== 'undefined' && (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag) {
+        (window as unknown as { gtag: (...args: unknown[]) => void }).gtag('event', 'pwa_performance', {
           lcp: metrics.lcp,
           fid: metrics.fid,
           cls: metrics.cls,
@@ -269,7 +271,7 @@ export function PerformanceMonitor() {
 }
 
 // Utility function to get performance metrics from localStorage
-export const getStoredMetrics = (): any[] => {
+export const getStoredMetrics = (): PerformanceMetrics[] => {
   try {
     return JSON.parse(localStorage.getItem('pwa-performance-metrics') || '[]')
   } catch (error) {

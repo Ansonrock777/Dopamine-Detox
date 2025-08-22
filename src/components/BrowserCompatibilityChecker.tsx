@@ -195,7 +195,7 @@ export function BrowserCompatibilityChecker() {
               <span className="font-medium">Critical Issues Detected</span>
             </div>
             <p className="text-sm text-red-600 dark:text-red-300 mt-1">
-              Your browser doesn't support some core PWA features. The app may not work as expected.
+              Your browser doesn&apos;t support some core PWA features. The app may not work as expected.
             </p>
             <div className="mt-2 space-y-1">
               {criticalIssues.map((issue, index) => (

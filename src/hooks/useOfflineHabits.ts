@@ -20,7 +20,7 @@ export interface UseOfflineHabitsReturn {
 }
 
 export function useOfflineHabits(): UseOfflineHabitsReturn {
-  const { user, isLoaded } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [habits, setHabits] = useState<HabitWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -73,7 +73,7 @@ export function useOfflineHabits(): UseOfflineHabitsReturn {
 
   // Load habits from API or offline storage
   const refreshHabits = useCallback(async () => {
-    if (!user?.id || !isLoaded) return
+    if (!user?.id || authLoading) return
 
     setLoading(true)
     setError(null)
@@ -127,7 +127,7 @@ export function useOfflineHabits(): UseOfflineHabitsReturn {
     } finally {
       setLoading(false)
     }
-  }, [user?.id, isLoaded, isOffline, checkPendingSync])
+  }, [user?.id, authLoading, isOffline, checkPendingSync])
 
   // Toggle habit completion
   const toggleHabit = useCallback(async (habitId: string, completed: boolean) => {
@@ -354,10 +354,10 @@ export function useOfflineHabits(): UseOfflineHabitsReturn {
 
   // Load habits on mount and when user changes
   useEffect(() => {
-    if (isLoaded) {
+    if (!authLoading) {
       refreshHabits()
     }
-  }, [isLoaded, refreshHabits])
+  }, [authLoading, refreshHabits])
 
   // Auto-sync when coming back online
   useEffect(() => {

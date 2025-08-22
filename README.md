@@ -118,6 +118,101 @@ Blocking isn't enough. You need to replace the habit:
 
 ---
 
+## 🗺️ Development Roadmap
+
+### Phase 1: NextDNS Business Plan Backend Integration (Weeks 1-4)
+**Goal**: Centralized profile management to prevent bypass attempts
+
+#### Foundation & Setup (Weeks 1-2)
+- [ ] **NextDNS Business Plan Setup** ($2/month per profile)
+  - Subscribe to NextDNS Business Plan for API access
+  - Generate Master API Key with secure storage
+  - Validate Business/Admin API capabilities (profile creation, cloning, analytics)
+- [ ] **Backend Architecture Development**
+  - NextDNS API Service (profile management, blocklist sync)
+  - User Profile Manager (lifecycle, preference mapping)
+  - DNS Configuration Service (device setup, compliance monitoring)
+  - Device Manager Service (provisioning, analytics correlation)
+- [ ] **Database Schema Extensions**
+  - `nextdns_business_profiles` - User-to-profile mapping
+  - `nextdns_policy_rules` - Tiered control system
+  - `nextdns_devices` - Device tracking and compliance
+  - `nextdns_compliance_logs` - Security monitoring
+
+#### Core Features (Weeks 3-4)
+- [ ] **Automated User Onboarding**
+  - Zero-config NextDNS profile creation on signup
+  - Default policy application (social media, adult content blocking)
+  - Device-specific setup instructions generation
+- [ ] **Policy Management System**
+  - System-controlled policies (core blocking, bypass prevention)
+  - User-configurable preferences (custom sites, schedules)
+  - Admin override capabilities (emergency unblock)
+- [ ] **API Endpoints** (Node.js runtime for secrets/crypto)
+  - `POST /api/nextdns/profile/create` - New user profile creation
+  - `PUT /api/nextdns/profile/sync` - Preference synchronization
+  - `GET /api/nextdns/setup-instructions` - Device configuration
+  - `POST /api/nextdns/compliance/check` - Bypass detection
+
+### Phase 2: Security & Enforcement (Weeks 5-6)
+**Goal**: Multi-layer bypass prevention and compliance monitoring
+
+- [ ] **Technical Bypass Prevention**
+  - Block NextDNS dashboard access
+  - DNS-over-HTTPS bypass detection
+  - VPN/proxy service blocking
+  - Alternative DNS server prevention
+- [ ] **User Verification System**
+  - DNS query fingerprinting
+  - Blocked site accessibility testing
+  - NextDNS analytics correlation
+  - Compliance score calculation
+- [ ] **Progressive Enforcement Actions**
+  - Warning notifications for minor violations
+  - Reset instructions for DNS changes
+  - Account restrictions for repeated violations
+  - Security alerts for system tampering
+
+### Phase 3: User Experience & Production (Weeks 7-8)
+**Goal**: Seamless setup and enterprise-grade reliability
+
+- [ ] **Device Provisioning Automation**
+  - iOS/macOS: Signed .mobileconfig profiles
+  - Windows: PowerShell DNS configuration scripts
+  - Android: Private DNS hostname with QR codes
+  - Linux: NetworkManager/systemd-resolved profiles
+- [ ] **Support & Diagnostics**
+  - `GET /api/nextdns/diagnostics` - DNS resolution testing
+  - `POST /api/support/unblock-request` - Emergency access
+  - Real-time compliance monitoring
+  - Automated support report generation
+- [ ] **Production Hardening**
+  - Idempotency keys for API operations
+  - Rate limiting and circuit breakers
+  - Observability (structured logs, metrics, alerts)
+  - Load testing and security audit
+
+### Phase 4: Advanced Features (Weeks 9-12)
+**Goal**: Intelligence, analytics, and engagement
+
+- [ ] **Behavioral Analytics**
+  - Usage pattern analysis and bypass attempt detection
+  - AI-powered policy recommendations
+  - Personalized blocking schedules
+  - Predictive intervention system
+- [ ] **Compliance Gamification**
+  - Daily/weekly compliance streaks
+  - Achievement badges and leaderboards
+  - Educational content on policy violations
+  - Anonymous peer support features
+- [ ] **Intelligence & Insights**
+  - Peak bypass attempt time analysis
+  - Most attempted blocked sites tracking
+  - Policy effectiveness measurement
+  - User engagement correlation
+
+---
+
 ## 📋 Coming Soon
 
 - **Advanced analytics** - See exactly how much time you're reclaiming

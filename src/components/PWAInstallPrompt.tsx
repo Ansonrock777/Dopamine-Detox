@@ -30,7 +30,7 @@ export function PWAInstallPrompt() {
 
     // Check if running on iOS Safari (PWA support but no beforeinstallprompt)
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
-    const isInStandaloneMode = window.navigator.standalone
+    const isInStandaloneMode = (window.navigator as { standalone?: boolean }).standalone
 
     if (isIOS && !isInStandaloneMode) {
       setInstallSource('manual')
@@ -74,11 +74,11 @@ export function PWAInstallPrompt() {
       setDeferredPrompt(null)
     }
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt as any)
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt as unknown as (e: Event) => void)
     window.addEventListener('appinstalled', handleAppInstalled)
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt as any)
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt as unknown as (e: Event) => void)
       window.removeEventListener('appinstalled', handleAppInstalled)
     }
   }, [])
@@ -180,8 +180,8 @@ export function PWAInstallPrompt() {
               <div className="text-xs text-white/80 space-y-1">
                 <p>To install on iOS:</p>
                 <p>1. Tap the Share button (↗)</p>
-                <p>2. Select "Add to Home Screen"</p>
-                <p>3. Tap "Add" to install</p>
+                <p>2. Select &quot;Add to Home Screen&quot;</p>
+                <p>3. Tap &quot;Add&quot; to install</p>
               </div>
             </div>
           ) : (

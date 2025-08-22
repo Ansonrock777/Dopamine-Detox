@@ -153,7 +153,7 @@ export function PushNotifications() {
       endpoint: 'local-notification',
       keys: {},
       options: { userVisibleOnly: true }
-    } as any
+    } as unknown as PushSubscription
   }
 
   const scheduleNotifications = async (notificationSettings: NotificationSettings) => {
@@ -230,7 +230,7 @@ export function PushNotifications() {
     }, intervalMs)
   }
 
-  const showLocalNotification = (data: any) => {
+  const showLocalNotification = (data: { title: string; body: string; type: string; habitId?: string }) => {
     if (Notification.permission === 'granted') {
       new Notification(data.title, {
         body: data.body,
@@ -270,7 +270,7 @@ export function PushNotifications() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Your browser doesn't support push notifications. Consider using a modern browser like Chrome or Firefox.
+            Your browser doesn&apos;t support push notifications. Consider using a modern browser like Chrome or Firefox.
           </p>
         </CardContent>
       </Card>
@@ -320,7 +320,7 @@ export function PushNotifications() {
                   Notifications Blocked
                 </p>
                 <p className="text-xs text-red-700 dark:text-red-300 mt-1">
-                  You've blocked notifications. Enable them in your browser settings to receive reminders.
+                  You&apos;ve blocked notifications. Enable them in your browser settings to receive reminders.
                 </p>
               </div>
             </div>

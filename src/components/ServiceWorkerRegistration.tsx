@@ -55,7 +55,7 @@ export function ServiceWorkerRegistration() {
 export function syncWhenOnline(tag: string) {
   if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
     navigator.serviceWorker.ready.then((registration) => {
-      return registration.sync.register(tag)
+      return (registration as ServiceWorkerRegistration & { sync: { register: (tag: string) => Promise<void> } }).sync.register(tag)
     }).catch((error) => {
       console.error('[PWA] Background sync registration failed:', error)
     })

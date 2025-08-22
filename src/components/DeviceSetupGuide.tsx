@@ -8,12 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Monitor, 
   Smartphone, 
-  Tablet, 
   Router, 
   ExternalLink,
   CheckCircle,
-  Copy,
-  ChevronRight
+  Copy
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,7 +20,7 @@ interface DeviceSetupGuideProps {
   nextDnsAccountId?: string;
 }
 
-export function DeviceSetupGuide({ nextDnsProfileId, nextDnsAccountId }: DeviceSetupGuideProps) {
+export function DeviceSetupGuide({ nextDnsProfileId }: DeviceSetupGuideProps) {
   const [copiedText, setCopiedText] = useState<string>("");
 
   const copyToClipboard = async (text: string, label: string) => {
@@ -31,7 +29,7 @@ export function DeviceSetupGuide({ nextDnsProfileId, nextDnsAccountId }: DeviceS
       setCopiedText(label);
       toast.success(`${label} copied to clipboard!`);
       setTimeout(() => setCopiedText(""), 2000);
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to copy to clipboard");
     }
   };
