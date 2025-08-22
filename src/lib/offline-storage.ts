@@ -13,7 +13,7 @@ const SYNC_QUEUE_STORE = 'syncQueue'
 
 // Types for offline operations
 export interface PendingHabitUpdate {
-  id?: string
+  id?: number
   action: 'create' | 'update' | 'delete' | 'toggle'
   data: Partial<Habit> | Partial<HabitEntry>
   timestamp: number
@@ -22,7 +22,7 @@ export interface PendingHabitUpdate {
 }
 
 export interface PendingReflectionUpdate {
-  id?: string
+  id?: number
   action: 'create'
   data: Partial<ReflectionResponse>
   timestamp: number
@@ -31,7 +31,7 @@ export interface PendingReflectionUpdate {
 }
 
 export interface SyncQueueItem {
-  id?: string
+  id?: number
   type: 'habit' | 'reflection'
   operation: PendingHabitUpdate | PendingReflectionUpdate
   timestamp: number

@@ -77,7 +77,7 @@ export function HabitCalendarGrid({
     const daysInYear = isLeapYear ? 366 : 365;
     
     const startDate = new Date(currentYear, 0, 1); // January 1st
-    const endDate = new Date(currentYear, 11, 31); // December 31st
+    // endDate not used but keeping for clarity
 
     // Find what day of week Jan 1st falls on (0 = Sunday, 1 = Monday, etc.)
     const startDayOfWeek = startDate.getDay();

@@ -20,7 +20,7 @@ interface NotificationSettings {
 export function PushNotifications() {
   const { user } = useAuth()
   const [permission, setPermission] = useState<NotificationPermission>('default')
-  const [subscription, setSubscription] = useState<PushSubscription | null>(null)
+  const [_subscription, setSubscription] = useState<PushSubscription | null>(null)
   const [settings, setSettings] = useState<NotificationSettings>({
     enabled: false,
     habitReminders: true,
@@ -147,7 +147,7 @@ export function PushNotifications() {
   }
 
   // Fallback to local notifications for demo
-  const createLocalSubscription = async (registration: ServiceWorkerRegistration) => {
+  const createLocalSubscription = async (_registration: ServiceWorkerRegistration) => {
     // This is a mock subscription for local notifications
     return {
       endpoint: 'local-notification',

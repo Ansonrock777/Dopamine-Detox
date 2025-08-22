@@ -29,7 +29,7 @@ export function DeviceSetupGuide({ nextDnsProfileId }: DeviceSetupGuideProps) {
       setCopiedText(label);
       toast.success(`${label} copied to clipboard!`);
       setTimeout(() => setCopiedText(""), 2000);
-    } catch (_error) {
+    } catch {
       toast.error("Failed to copy to clipboard");
     }
   };

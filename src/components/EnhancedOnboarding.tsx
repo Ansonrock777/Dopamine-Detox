@@ -12,7 +12,6 @@ import {
   Globe, 
   Shield, 
   Monitor,
-  ExternalLink,
   Info
 } from "lucide-react";
 import { toast } from "sonner";
@@ -78,7 +77,7 @@ export function EnhancedOnboarding({
     if (nextIncompleteStep !== -1) {
       setCurrentStep(nextIncompleteStep);
     }
-  }, [nextDnsConnected, hasBlockedWebsites]);
+  }, [steps, nextDnsConnected, hasBlockedWebsites]);
 
   const handleStepClick = (index: number, step: OnboardingStep) => {
     setCurrentStep(index);
@@ -95,6 +94,9 @@ export function EnhancedOnboarding({
     localStorage.setItem('dopamine-detox-onboarding-dismissed', 'true');
     toast.success('Onboarding dismissed - you can always refer back to the setup sections below');
   };
+
+  // Silence unused variable warning
+  void dismissOnboarding;
 
   // Check if user has dismissed onboarding
   useEffect(() => {

@@ -37,7 +37,7 @@ export function HabitCard({
   onToggleCompletion,
   onEdit,
   onDelete,
-  isCompleted = false,
+  isCompleted: _isCompleted = false,
 }: HabitCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [todayCompleted, setTodayCompleted] = useState(habit.today_completed);

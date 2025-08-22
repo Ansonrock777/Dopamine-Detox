@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import type { HabitOverview } from '@/types'
 import { getBadgeInfo } from '@/lib/badge-utils'
 

@@ -121,7 +121,7 @@ export function useOfflineHabits(): UseOfflineHabitsReturn {
         } else {
           setError(error instanceof Error ? error.message : 'Failed to load habits')
         }
-      } catch (offlineError) {
+      } catch {
         setError(error instanceof Error ? error.message : 'Failed to load habits')
       }
     } finally {
@@ -290,11 +290,17 @@ export function useOfflineHabits(): UseOfflineHabitsReturn {
           let body = operation.data
 
           if (operation.action === 'toggle') {
-            endpoint = `/api/habits/${operation.data.habit_id}/toggle`
+            // Type guard to ensure we have a HabitEntry with habit_id
+            const habitEntry = operation.data as Partial<HabitEntry>
+            if (!habitEntry.habit_id) {
+              console.error('[useOfflineHabits] Toggle operation missing habit_id')
+              continue
+            }
+            endpoint = `/api/habits/${habitEntry.habit_id}/toggle`
             method = 'POST'
             body = {
-              completion_date: operation.data.completion_date,
-              completed: operation.data.completed
+              completion_date: habitEntry.completion_date,
+              completed: habitEntry.completed
             }
           }
 

@@ -63,7 +63,7 @@ export function PerformanceMonitor() {
 
       try {
         lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] })
-      } catch (_e) {
+      } catch {
         console.warn('[Performance] LCP observer not supported')
       }
 
@@ -79,7 +79,7 @@ export function PerformanceMonitor() {
 
       try {
         fidObserver.observe({ entryTypes: ['first-input'] })
-      } catch (_e) {
+      } catch {
         console.warn('[Performance] FID observer not supported')
       }
 
@@ -97,7 +97,7 @@ export function PerformanceMonitor() {
 
       try {
         clsObserver.observe({ entryTypes: ['layout-shift'] })
-      } catch (_e) {
+      } catch {
         console.warn('[Performance] CLS observer not supported')
       }
 
@@ -143,7 +143,7 @@ export function PerformanceMonitor() {
 
   const monitorServiceWorker = () => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then((registration) => {
+      navigator.serviceWorker.ready.then(() => {
         metricsRef.current.serviceWorkerStatus = 'ready'
         console.log('[Performance] Service Worker ready')
         
@@ -160,9 +160,8 @@ export function PerformanceMonitor() {
   const monitorCachePerformance = async () => {
     if ('caches' in window) {
       try {
-        const cacheNames = await caches.keys()
-        const totalRequests = 0
-        const cacheHits = 0
+        await caches.keys()
+        // Cache metrics would require custom tracking
 
         // This would need to be implemented with actual cache metrics
         // For now, we'll simulate based on service worker logs

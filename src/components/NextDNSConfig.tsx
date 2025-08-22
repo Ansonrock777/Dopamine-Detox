@@ -12,7 +12,7 @@ import {
   Globe, 
   Shield, 
   Settings, 
-  RotateCw, 
+ 
   CheckCircle, 
   XCircle, 
   AlertCircle,
@@ -31,7 +31,7 @@ export function NextDNSConfig() {
   const [categories, setCategories] = useState<NextDNSCategory[]>([]);
   const [syncLog, setSyncLog] = useState<NextDNSSyncLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
+  const [_syncing, setSyncing] = useState(false);
   const [settingUp, setSettingUp] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   
@@ -216,7 +216,7 @@ export function NextDNSConfig() {
     setPendingCategoryChange(null);
   };
 
-  const handleSync = async () => {
+  const _handleSync = async () => {
     setSyncing(true);
     try {
       const response = await fetch('/api/nextdns/sync', {
