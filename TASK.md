@@ -17,9 +17,19 @@ Centralized backend management where the system creates and controls NextDNS pro
 
 ---
 
+## 🔧 Assumptions & Constraints
+- NextDNS Business/Admin API supports programmatic configuration/profile creation and cloning. If per-user creation is limited, use a base template and clone.
+- Secrets must not be exposed to the Edge runtime; server-only env access is required.
+- DNS enforcement on user devices is best-effort; verification relies on analytics correlation and periodic checks rather than guarantees.
+
 ## 📋 Implementation Plan
 
 ### Phase 1: NextDNS Business Plan Setup & API Integration
+
+#### 1.0 Capability Validation (Blocking)
+- [ ] Validate NextDNS Business/Admin API for profile creation/cloning, policy management, analytics, and device labeling
+- [ ] Document API rate limits, pagination, and error semantics
+- [ ] Decide per-user profile vs. shared-profile-with-device-labels strategy
 
 #### 1.1 NextDNS Business Account Setup
 - [ ] **Subscribe to NextDNS Business Plan** ($2/month per profile)
@@ -52,6 +62,11 @@ Centralized backend management where the system creates and controls NextDNS pro
    - Generate user-specific DNS settings
    - Handle device setup instructions
    - Monitor compliance
+ 
+4. Device Manager Service
+   - Track per-device registrations (name, platform, compliance status)
+   - Generate provisioning artifacts (mobileconfig, scripts)
+   - Correlate NextDNS analytics to device identities
 ```
 
 #### 1.3 Database Schema Extensions
@@ -86,6 +101,42 @@ CREATE TABLE nextdns_compliance_logs (
   event_data JSONB,
   timestamp TIMESTAMP DEFAULT NOW()
 );
+
+-- Additional tables for robustness:
+CREATE TABLE nextdns_devices (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id),
+  profile_id UUID REFERENCES nextdns_business_profiles(id),
+  device_name VARCHAR NOT NULL,
+  platform VARCHAR NOT NULL, -- 'ios' | 'macos' | 'android' | 'windows' | 'linux'
+  nextdns_device_label VARCHAR, -- label/identifier used in analytics
+  compliance_status VARCHAR DEFAULT 'unknown', -- 'compliant' | 'non_compliant' | 'unknown'
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE nextdns_profile_audits (
+  id UUID PRIMARY KEY,
+  profile_id UUID REFERENCES nextdns_business_profiles(id),
+  actor VARCHAR NOT NULL, -- 'system' | 'admin' | user id
+  action VARCHAR NOT NULL, -- 'create' | 'update' | 'delete' | 'sync'
+  diff JSONB,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE nextdns_idempotency_keys (
+  id UUID PRIMARY KEY,
+  key VARCHAR UNIQUE NOT NULL,
+  endpoint VARCHAR NOT NULL,
+  user_id UUID REFERENCES profiles(id),
+  response JSONB,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_nextdns_profiles_user ON nextdns_business_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_nextdns_devices_user ON nextdns_devices(user_id);
+CREATE INDEX IF NOT EXISTS idx_nextdns_compliance_user ON nextdns_compliance_logs(user_id);
 ```
 
 ---
@@ -107,6 +158,9 @@ CREATE TABLE nextdns_compliance_logs (
 ```typescript
 // New API routes needed:
 
+// Runtime: Node.js (server-only env + stable HTTP/crypto); avoid Edge for these
+// Idempotency: Accept 'Idempotency-Key' header for POST/PUT endpoints
+
 POST /api/nextdns/profile/create
   - Creates NextDNS profile for new user
   - Applies default policies
@@ -126,9 +180,34 @@ POST /api/nextdns/compliance/check
   - Verifies user DNS configuration
   - Detects bypass attempts
   - Triggers corrective actions
+
+// Align with existing structure in src/app/api/nextdns/* to avoid duplication
+// Consider: POST /api/nextdns/profile, PUT /api/nextdns/profile, GET /api/nextdns/setup-instructions
+// Reuse /api/nextdns/sync if semantics match 'profile/sync'
+
+// Rate limiting & retries
+// - Per-user rate limit on mutation routes
+// - Exponential backoff and circuit breaking on NextDNS API failures
 ```
 
-#### 2.3 Policy Management System
+#### 2.3 Device Provisioning Artifacts
+```typescript
+// Generated per device/platform:
+
+1. Apple (iOS/macOS):
+   - .mobileconfig profile with DNS-over-HTTPS endpoints (signed if possible)
+
+2. Windows:
+   - PowerShell script to set DNS servers + DoH config
+
+3. Android:
+   - Private DNS hostname instructions (QR link + deep link where supported)
+
+4. Linux:
+   - resolv.conf/systemd-resolved instructions or NetworkManager profiles
+```
+
+#### 2.4 Policy Management System
 ```typescript
 // Tiered control system:
 
@@ -162,7 +241,7 @@ ADMIN_OVERRIDE: [
 ```typescript
 // Multiple layers of protection:
 
-1. DNS Level Protection:
+1. DNS Level Protection (best-effort on user-controlled devices):
    - Block access to NextDNS dashboard
    - Block DNS over HTTPS bypass attempts
    - Block VPN/proxy services
@@ -202,6 +281,23 @@ async function verifyDNSCompliance(userId: string) {
     analyticsData
   })
 }
+```
+
+#### 3.4 Operational & Runtime Considerations
+```typescript
+// Runtimes
+- Next.js API routes for NextDNS integration: runtime = 'nodejs'
+- Avoid Edge for routes requiring secrets, crypto, or large payloads
+
+// Resiliency
+- Use queues for profile creation bursts; retry with jitter
+- Implement idempotency keys to prevent duplicate profiles
+- Health checks and circuit breaker around NextDNS API
+
+// Observability
+- Structured logs (request IDs, user IDs, profile IDs)
+- Metrics: latency, error rates, retries, rate-limit hits
+- Alerts on elevated failure/compliance anomalies
 ```
 
 #### 3.3 Enforcement Actions
@@ -255,6 +351,7 @@ VIOLATION_RESPONSES = {
    - Scan QR code for auto-configuration
    - Platform-specific setup guides
    - One-click DNS configuration where possible
+   - Provide downloadable artifacts (.mobileconfig, PowerShell script)
 
 3. Ongoing Management:
    - All controls through Dopamine Detox app
@@ -271,6 +368,7 @@ GET /api/nextdns/diagnostics
   - Check blocking effectiveness  
   - Verify profile configuration
   - Generate support report
+  - Include device labels and last-seen analytics snapshot
 
 POST /api/support/unblock-request
   - Temporary unblock for emergencies
@@ -444,30 +542,35 @@ ENTERPRISE_TIER: {
 - [ ] API integration development
 - [ ] Database schema updates
 - [ ] Basic profile creation system
+ - [ ] Capability validation against Business/Admin API (create/clone, analytics)
 
 ### Week 3-4: Core Features  
 - [ ] User onboarding flow
 - [ ] Policy management system
 - [ ] Device setup automation
 - [ ] Basic compliance checking
+ - [ ] Idempotency + rate limiting
 
 ### Week 5-6: Security & Enforcement
 - [ ] Bypass prevention mechanisms
 - [ ] Verification systems
 - [ ] Enforcement actions
 - [ ] Security hardening
+ - [ ] Observability (logs/metrics/alerts)
 
 ### Week 7-8: User Experience
 - [ ] Setup simplification
 - [ ] Support tools
 - [ ] Documentation
 - [ ] Testing & QA
+ - [ ] Rollout plan + kill-switch
 
 ### Week 9-10: Advanced Features
 - [ ] Analytics integration
 - [ ] Intelligent policies
 - [ ] Gamification elements
 - [ ] Performance optimization
+ - [ ] Nightly reconciliation job
 
 ### Week 11-12: Launch Preparation
 - [ ] Load testing
