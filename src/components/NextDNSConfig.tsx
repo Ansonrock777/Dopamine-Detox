@@ -4,22 +4,16 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { 
   Globe, 
   Shield, 
   Settings, 
- 
   CheckCircle, 
   XCircle, 
   AlertCircle,
-  ExternalLink,
-  Plus,
-  Eye,
-  EyeOff
+  Plus
 } from "lucide-react";
 import { toast } from "sonner";
 import type { NextDNSAccount, NextDNSCategory, NextDNSSyncLog } from "@/types";
@@ -31,17 +25,18 @@ export function NextDNSConfig() {
   const [categories, setCategories] = useState<NextDNSCategory[]>([]);
   const [syncLog, setSyncLog] = useState<NextDNSSyncLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [_syncing, setSyncing] = useState(false);
-  const [settingUp, setSettingUp] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   
-  // Setup form state
-  const [setupForm, setSetupForm] = useState({
-    apiKey: '',
-    profileId: '',
-    profileName: 'Dopamine Detox'
-  });
-  const [showSetupForm, setShowSetupForm] = useState(false);
+  // DNS configuration from business profile
+  const [dnsConfig, setDnsConfig] = useState<{
+    primary: string;
+    secondary: string;
+    ipv6Primary?: string;
+    ipv6Secondary?: string;
+    setupInstructions?: Record<string, string>;
+  } | null>(null);
+  const [showDnsInstructions, setShowDnsInstructions] = useState(false);
+  
   
   // Reflection wall state
   const [showReflectionWall, setShowReflectionWall] = useState(false);
@@ -74,9 +69,15 @@ export function NextDNSConfig() {
         const accountData = await accountRes.json();
         console.log('Account data received:', accountData);
         setAccount(accountData.account);
+        
+        // If it's a business profile, set DNS configuration
+        if (accountData.dnsConfiguration) {
+          setDnsConfig(accountData.dnsConfiguration);
+        }
       } else {
         console.log('Account request failed or no account connected');
         setAccount(null);
+        setDnsConfig(null);
       }
 
       if (categoriesRes.ok) {
@@ -110,39 +111,43 @@ export function NextDNSConfig() {
     }
   }, [user, fetchData]);
 
-  const handleSetupAccount = async () => {
-    if (!setupForm.apiKey || !setupForm.profileId) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    setSettingUp(true);
+  // Handle automatic NextDNS connection 
+  const handleConnectNextDNS = async () => {
+    setConnecting(true);
     try {
+      console.log('🔄 Creating automatic NextDNS profile...');
+      
       const response = await fetch('/api/nextdns/account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(setupForm)
+        body: JSON.stringify({ 
+          profileName: 'Dopamine Detox'
+        })
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to connect to NextDNS account');
+        throw new Error(error.error || 'Failed to create NextDNS profile');
       }
 
       const data = await response.json();
+      console.log('✅ NextDNS profile created:', data);
+      
       setAccount(data.account);
-      setShowSetupForm(false);
-      setSetupForm({ apiKey: '', profileId: '', profileName: 'Dopamine Detox' });
+      if (data.dnsConfiguration) {
+        setDnsConfig(data.dnsConfiguration);
+        setShowDnsInstructions(true);
+      }
       
       // Refresh data to get initialized categories
       await fetchData();
       
-      toast.success('NextDNS account connected successfully!');
+      toast.success(data.message || 'NextDNS profile created successfully!');
     } catch (error) {
-      console.error('Error connecting to NextDNS account:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to connect to NextDNS account');
+      console.error('❌ Error creating NextDNS profile:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to create NextDNS profile');
     } finally {
-      setSettingUp(false);
+      setConnecting(false);
     }
   };
 
@@ -216,29 +221,6 @@ export function NextDNSConfig() {
     setPendingCategoryChange(null);
   };
 
-  const _handleSync = async () => {
-    setSyncing(true);
-    try {
-      const response = await fetch('/api/nextdns/sync', {
-        method: 'POST'
-      });
-
-      if (!response.ok) {
-        console.error('Sync response not ok:', response.status, response.statusText);
-        const error = await response.json().catch(() => ({ error: `HTTP ${response.status}: ${response.statusText}` }));
-        console.error('Sync error details:', error);
-        throw new Error(error.error || 'Failed to sync with NextDNS');
-      }
-
-      await fetchData(); // Refresh sync log
-      toast.success('Successfully synced with NextDNS!');
-    } catch (error) {
-      console.error('Error syncing with NextDNS:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to sync with NextDNS');
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const handleRemoveAccount = async () => {
     try {
@@ -305,103 +287,24 @@ export function NextDNSConfig() {
                 <h3 className="text-lg font-medium text-gray-300 mb-2">
                   NextDNS Not Connected
                 </h3>
-                <p className="text-gray-500 mb-4">
-                  Connect your NextDNS account to enable network-wide blocking
+                <p className="text-gray-500 mb-6">
+                  Get instant network-wide blocking across all your devices
                 </p>
+                
                 <Button
-                  onClick={() => setShowSetupForm(true)}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={handleConnectNextDNS}
+                  disabled={connecting}
+                  className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
+                  size="lg"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Connect NextDNS
+                  {connecting ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  ) : (
+                    <Plus className="w-4 h-4 mr-2" />
+                  )}
+                  {connecting ? 'Creating Profile...' : 'Get Started with NextDNS'}
                 </Button>
               </div>
-              
-              {showSetupForm && (
-                <div className="border-t border-gray-700 pt-4 space-y-4">
-                  <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
-                    <h4 className="text-blue-300 font-semibold mb-2">Setup Instructions:</h4>
-                    <ol className="list-decimal list-inside space-y-1 text-gray-300 text-sm">
-                      <li>Create a NextDNS account at <a href="https://nextdns.io" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline inline-flex items-center">nextdns.io <ExternalLink className="w-3 h-3 ml-1" /></a></li>
-                      <li>Go to <a href="https://my.nextdns.io/account" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline inline-flex items-center">account settings <ExternalLink className="w-3 h-3 ml-1" /></a> and generate an API key</li>
-                      <li>Copy your Profile ID from Setup → Endpoints → ID</li>
-                      <li>Enter the details below</li>
-                    </ol>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="apiKey">API Key *</Label>
-                      <div className="relative">
-                        <Input
-                          id="apiKey"
-                          type={showApiKey ? "text" : "password"}
-                          placeholder="Enter your NextDNS API key"
-                          value={setupForm.apiKey}
-                          onChange={(e) => setSetupForm({ ...setupForm, apiKey: e.target.value })}
-                          className="bg-gray-800 border-gray-700 text-white pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowApiKey(!showApiKey)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors"
-                        >
-                          {showApiKey ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="profileId">Profile ID *</Label>
-                      <Input
-                        id="profileId"
-                        placeholder="Your NextDNS profile ID (e.g., 649b14)"
-                        value={setupForm.profileId}
-                        onChange={(e) => setSetupForm({ ...setupForm, profileId: e.target.value })}
-                        className="bg-gray-800 border-gray-700 text-white"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="profileName">Profile Name</Label>
-                      <Input
-                        id="profileName"
-                        placeholder="Dopamine Detox"
-                        value={setupForm.profileName}
-                        onChange={(e) => setSetupForm({ ...setupForm, profileName: e.target.value })}
-                        className="bg-gray-800 border-gray-700 text-white"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    <Button
-                      onClick={handleSetupAccount}
-                      disabled={settingUp}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      {settingUp ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      ) : (
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                      )}
-                      Connect Account
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowSetupForm(false)}
-                      className="border-gray-700 text-gray-300"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -413,15 +316,21 @@ export function NextDNSConfig() {
                       Connected
                     </Badge>
                     <span className="text-white font-medium">{account.profile_name}</span>
+                    {account.is_business_profile && (
+                      <Badge variant="secondary" className="bg-blue-600">
+                        Auto-Managed
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-gray-400 text-sm">
-                    Profile: {account.profile_id} • API Key: {account.api_key}
+                    Profile: {account.profile_id} • 
+                    {account.is_business_profile ? ' Business Account' : ` API Key: ${account.api_key}`}
                   </p>
                 </div>
                 <div className="flex space-x-2">
                   <div className="text-green-400 text-sm flex items-center">
                     <CheckCircle className="w-4 h-4 mr-1" />
-                    Auto-sync enabled
+                    {account.is_business_profile ? 'Auto-managed' : 'Auto-sync enabled'}
                   </div>
                   <Button
                     variant="outline"
@@ -432,6 +341,66 @@ export function NextDNSConfig() {
                   </Button>
                 </div>
               </div>
+
+              {/* DNS Setup Instructions for Business Profiles */}
+              {account.is_business_profile && dnsConfig && (
+                <div className="mt-4 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-blue-300 font-semibold">DNS Configuration</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowDnsInstructions(!showDnsInstructions)}
+                      className="text-blue-300 hover:text-blue-200"
+                    >
+                      {showDnsInstructions ? 'Hide' : 'Show'} Setup Instructions
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="bg-gray-800 p-3 rounded border">
+                        <p className="text-gray-300 font-medium mb-1">Primary DNS</p>
+                        <code className="text-green-400 text-xs bg-gray-900 px-2 py-1 rounded">
+                          {dnsConfig.primary}
+                        </code>
+                      </div>
+                      <div className="bg-gray-800 p-3 rounded border">
+                        <p className="text-gray-300 font-medium mb-1">Secondary DNS</p>
+                        <code className="text-green-400 text-xs bg-gray-900 px-2 py-1 rounded">
+                          {dnsConfig.secondary}
+                        </code>
+                      </div>
+                    </div>
+                  </div>
+
+                  {showDnsInstructions && dnsConfig.setupInstructions && (
+                    <div className="mt-4 pt-4 border-t border-blue-500/30">
+                      <h5 className="text-blue-300 font-medium mb-3">Device Setup Instructions:</h5>
+                      <div className="space-y-3 text-xs">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <div className="bg-gray-800 p-3 rounded">
+                            <strong className="text-white">📱 iOS/iPhone:</strong>
+                            <p className="text-gray-300 mt-1">{dnsConfig.setupInstructions.ios}</p>
+                          </div>
+                          <div className="bg-gray-800 p-3 rounded">
+                            <strong className="text-white">🤖 Android:</strong>
+                            <p className="text-gray-300 mt-1">{dnsConfig.setupInstructions.android}</p>
+                          </div>
+                          <div className="bg-gray-800 p-3 rounded">
+                            <strong className="text-white">🪟 Windows:</strong>
+                            <p className="text-gray-300 mt-1">{dnsConfig.setupInstructions.windows}</p>
+                          </div>
+                          <div className="bg-gray-800 p-3 rounded">
+                            <strong className="text-white">🍎 macOS:</strong>
+                            <p className="text-gray-300 mt-1">{dnsConfig.setupInstructions.macos}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </CardContent>

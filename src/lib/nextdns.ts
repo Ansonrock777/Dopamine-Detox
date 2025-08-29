@@ -128,10 +128,35 @@ export class NextDNSClient {
   }
 
   async createProfile(name: string): Promise<NextDNSProfile> {
-    return this.request<NextDNSProfile>('/profiles', {
+    console.log(`🔄 NextDNS createProfile: Making API call with name "${name}"`)
+    
+    const response = await this.request<{ data: NextDNSProfile } | NextDNSProfile>('/profiles', {
       method: 'POST',
       body: JSON.stringify({ name }),
     });
+    
+    console.log(`🔍 NextDNS createProfile raw response:`, JSON.stringify(response, null, 2))
+    
+    // Some NextDNS endpoints return the object directly, others wrap it in { data }
+    let profile: NextDNSProfile
+    if (typeof (response as unknown as { data?: NextDNSProfile }).data !== 'undefined') {
+      profile = (response as { data: NextDNSProfile }).data;
+      console.log(`🔍 NextDNS createProfile extracted from .data:`, JSON.stringify(profile, null, 2))
+    } else {
+      profile = response as NextDNSProfile;
+      console.log(`🔍 NextDNS createProfile using direct response:`, JSON.stringify(profile, null, 2))
+    }
+    
+    if (!profile || typeof profile !== 'object') {
+      throw new Error(`Invalid profile response from NextDNS API: ${JSON.stringify(response)}`)
+    }
+    
+    if (!profile.id) {
+      throw new Error(`NextDNS API returned profile without ID: ${JSON.stringify(profile)}`)
+    }
+    
+    console.log(`✅ NextDNS createProfile successful, ID: ${profile.id}`)
+    return profile;
   }
 
   async updateProfile(profileId: string, config: Partial<NextDNSProfile>): Promise<NextDNSProfile> {

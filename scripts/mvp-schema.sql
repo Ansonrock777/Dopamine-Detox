@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS profiles (
     last_name VARCHAR(50),
     image_url VARCHAR(500),
     username VARCHAR(50),
+    profile_name VARCHAR(50),
+    nextdns_profile_id TEXT,
+    nextdns_profile_name TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -801,6 +804,7 @@ END $$;
 -- ==================================================
 
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
+CREATE INDEX IF NOT EXISTS idx_profiles_nextdns_profile_id ON profiles(nextdns_profile_id);
 CREATE INDEX IF NOT EXISTS idx_blocked_websites_user_id ON blocked_websites(user_id);
 CREATE INDEX IF NOT EXISTS idx_blocked_websites_sync_status ON blocked_websites(user_id, nextdns_synced);
 CREATE INDEX IF NOT EXISTS idx_habits_user_id ON habits(user_id);
@@ -890,6 +894,149 @@ CROSS JOIN (
         ('video-streaming', 'Video Streaming')
 ) AS category_data(category_id, category_name)
 ON CONFLICT (user_id, category_id) DO NOTHING;
+
+-- ==================================================
+-- 13. NEXTDNS BUSINESS PROFILES - Backend-Controlled Profiles
+-- ==================================================
+
+-- New table for business-managed profiles (replaces manual nextdns_accounts)
+CREATE TABLE IF NOT EXISTS nextdns_business_profiles (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id TEXT REFERENCES profiles(id) ON DELETE CASCADE,
+    nextdns_profile_id VARCHAR(100) NOT NULL, -- Created profile ID from NextDNS API
+    profile_name VARCHAR(100) NOT NULL DEFAULT 'Dopamine Detox',
+    dns_server_1 VARCHAR(50) NOT NULL, -- Primary DNS (e.g., "abc123.dns.nextdns.io")
+    dns_server_2 VARCHAR(50) NOT NULL, -- Secondary DNS
+    dns_ipv6_1 VARCHAR(100), -- IPv6 DNS servers (optional)
+    dns_ipv6_2 VARCHAR(100),
+    dns_over_https_url VARCHAR(200) NOT NULL DEFAULT '', -- DNS over HTTPS URL
+    status VARCHAR(20) DEFAULT 'active', -- 'active', 'suspended', 'deleted'
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id) -- One business profile per user
+);
+
+-- Index for performance
+CREATE INDEX IF NOT EXISTS idx_business_profiles_user ON nextdns_business_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_business_profiles_status ON nextdns_business_profiles(user_id, status);
+
+-- Enable RLS
+ALTER TABLE nextdns_business_profiles ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for business profiles
+DO $$ BEGIN
+    CREATE POLICY "Users can manage own business profile" ON nextdns_business_profiles 
+    FOR ALL 
+    USING (user_id = current_setting('app.current_user_id', true))
+    WITH CHECK (user_id = current_setting('app.current_user_id', true));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- Function to get user's business profile
+CREATE OR REPLACE FUNCTION get_user_business_profile(p_user_id TEXT)
+RETURNS nextdns_business_profiles AS $$
+DECLARE
+    profile_record nextdns_business_profiles;
+BEGIN
+    PERFORM set_config('app.current_user_id', p_user_id, true);
+    
+    SELECT * INTO profile_record
+    FROM nextdns_business_profiles 
+    WHERE user_id = p_user_id AND status = 'active';
+    
+    RETURN profile_record;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to check if user has business profile
+CREATE OR REPLACE FUNCTION user_has_business_profile(p_user_id TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM nextdns_business_profiles 
+        WHERE user_id = p_user_id AND status = 'active'
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_business_profiles_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_business_profiles_timestamp
+    BEFORE UPDATE ON nextdns_business_profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION update_business_profiles_timestamp();
+
+-- Update profiles table to track business profile connection
+ALTER TABLE profiles 
+ADD COLUMN IF NOT EXISTS has_business_profile BOOLEAN DEFAULT false;
+
+-- Create a database function to handle business profile creation with bypassed RLS
+-- This function runs with SECURITY DEFINER to bypass RLS policies
+CREATE OR REPLACE FUNCTION create_business_profile_bypass_rls(
+    p_user_id TEXT,
+    p_nextdns_profile_id VARCHAR(100),
+    p_profile_name VARCHAR(100),
+    p_dns_server_1 VARCHAR(50),
+    p_dns_server_2 VARCHAR(50),
+    p_dns_ipv6_1 VARCHAR(100) DEFAULT NULL,
+    p_dns_ipv6_2 VARCHAR(100) DEFAULT NULL,
+    p_dns_over_https_url VARCHAR(200) DEFAULT NULL
+)
+RETURNS nextdns_business_profiles
+LANGUAGE plpgsql
+SECURITY DEFINER  -- This allows the function to bypass RLS policies
+AS $$
+DECLARE
+    new_profile nextdns_business_profiles;
+BEGIN
+    -- Insert the business profile directly (bypassing RLS due to SECURITY DEFINER)
+    INSERT INTO nextdns_business_profiles (
+        user_id, nextdns_profile_id, profile_name, 
+        dns_server_1, dns_server_2, dns_ipv6_1, dns_ipv6_2, dns_over_https_url, status
+    ) VALUES (
+        p_user_id, p_nextdns_profile_id, p_profile_name,
+        p_dns_server_1, p_dns_server_2, p_dns_ipv6_1, p_dns_ipv6_2, 
+        COALESCE(p_dns_over_https_url, 'https://dns.nextdns.io/' || p_nextdns_profile_id), 
+        'active'
+    ) RETURNING * INTO new_profile;
+    
+    RETURN new_profile;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to create business profile: %', SQLERRM;
+END;
+$$;
+
+-- Function to sync profile status
+CREATE OR REPLACE FUNCTION sync_profile_business_status()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE profiles 
+        SET has_business_profile = true 
+        WHERE id = NEW.user_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE profiles 
+        SET has_business_profile = false 
+        WHERE id = OLD.user_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_sync_business_profile_status
+    AFTER INSERT OR DELETE ON nextdns_business_profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION sync_profile_business_status();
 
 -- ==================================================
 -- MVP SCHEMA COMPLETE ✅

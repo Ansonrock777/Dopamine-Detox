@@ -63,6 +63,7 @@ export interface NextDNSAccount {
   profile_id: string
   profile_name: string
   is_active: boolean
+  is_business_profile?: boolean
   last_sync: string
   created_at: string
   updated_at: string

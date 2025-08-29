@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { 
   getNextDNSAccount, 
-  createNextDNSAccount, 
   updateNextDNSAccount, 
-  deleteNextDNSAccount,
-  initializeNextDNSCategories 
+  deleteNextDNSAccount
 } from '@/lib/nextdns-database'
+import { 
+  NextDNSBusinessManager,
+  getBusinessProfileForUser,
+  createBusinessProfileForUser
+} from '@/lib/nextdns-business'
 
-// GET /api/nextdns/account - Get user's NextDNS account
+// GET /api/nextdns/account - Get user's NextDNS account (manual or business)
 export async function GET() {
   try {
     console.log('GET /api/nextdns/account - Starting request')
@@ -20,7 +23,29 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('Calling getNextDNSAccount for userId:', userId)
+    // First check for business profile (new system)
+    console.log('Checking for business profile first...')
+    const businessProfile = await getBusinessProfileForUser(userId)
+    
+    if (businessProfile) {
+      console.log('Business profile found:', businessProfile.id)
+      const manager = new NextDNSBusinessManager()
+      const dnsConfig = manager.getDNSSetupInstructions(businessProfile)
+      
+      return NextResponse.json({ 
+        account: {
+          id: businessProfile.id,
+          profile_id: businessProfile.nextdns_profile_id,
+          profile_name: businessProfile.profile_name,
+          api_key: 'business-managed',
+          is_business_profile: true
+        },
+        dnsConfiguration: dnsConfig
+      })
+    }
+
+    // Fall back to manual account (legacy system)
+    console.log('No business profile, checking manual account...')
     const account = await getNextDNSAccount(userId)
     console.log('getNextDNSAccount result:', account ? 'Account found' : 'No account found')
     
@@ -32,7 +57,8 @@ export async function GET() {
     // Don't return the actual API key for security
     const safeAccount = {
       ...account,
-      api_key: account.api_key.substring(0, 8) + '...'
+      api_key: account.api_key.substring(0, 8) + '...',
+      is_business_profile: false
     }
 
     console.log('Returning safe account data:', { id: safeAccount.id, profile_id: safeAccount.profile_id })
@@ -47,7 +73,7 @@ export async function GET() {
   }
 }
 
-// POST /api/nextdns/account - Connect to existing NextDNS account
+// POST /api/nextdns/account - Connect NextDNS (auto-create business profile or manual account)
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth()
@@ -56,33 +82,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { apiKey, profileId, profileName } = await request.json()
+    const body = await request.json().catch(() => ({}))
+    const { profileName } = body
 
-    if (!apiKey || !profileId) {
+    // AUTO-CREATE business profile mode (only option now)
+    console.log('Auto-creating business profile for user:', userId)
+    
+    try {
+      // Create business profile automatically
+      const profile = await createBusinessProfileForUser(
+        userId,
+        undefined, // userName will be derived
+        profileName || 'Dopamine Detox'
+      )
+
+      // Get DNS setup instructions
+      const manager = new NextDNSBusinessManager()
+      const dnsConfig = manager.getDNSSetupInstructions(profile)
+
+      return NextResponse.json({
+        account: {
+          id: profile.id,
+          profile_id: profile.nextdns_profile_id,
+          profile_name: profile.profile_name,
+          api_key: 'business-managed',
+          is_business_profile: true
+        },
+        dnsConfiguration: dnsConfig,
+        message: 'NextDNS profile created automatically! Configure your devices with the DNS servers provided.'
+      })
+    } catch (error) {
+      console.error('Failed to auto-create business profile:', error)
+      
+      let errorMessage = 'Failed to create NextDNS profile'
+      if (error instanceof Error) {
+        errorMessage = error.message
+      }
+      
       return NextResponse.json(
-        { error: 'Missing required fields: apiKey, profileId' },
-        { status: 400 }
+        { error: errorMessage },
+        { status: 500 }
       )
     }
-
-    // Connect to the existing NextDNS account
-    const account = await createNextDNSAccount(
-      userId,
-      apiKey,
-      profileId,
-      profileName || 'Dopamine Detox'
-    )
-
-    // Initialize categories for the user
-    await initializeNextDNSCategories(userId)
-
-    // Return safe account data (without full API key)
-    const safeAccount = {
-      ...account,
-      api_key: account.api_key.substring(0, 8) + '...'
-    }
-
-    return NextResponse.json({ account: safeAccount })
   } catch (error) {
     console.error('Error connecting NextDNS account:', error)
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
@@ -102,7 +143,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { 
         error: errorMessage,
-        details: errorDetails
+        details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
       },
       { status: 500 }
     )
