@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { getProfileConfig, ensureProfileConfigSynced } from '@/lib/nextdns-database'
+import { ensureProfileConfigSynced } from '@/lib/nextdns-database'
 
 // GET /api/nextdns/profile-config - Get cached profile configuration
 export async function GET() {

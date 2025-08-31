@@ -816,7 +816,7 @@ export async function syncProfileConfig(userId: string): Promise<NextDNSProfileC
     }
     
     // Get configuration based on profile ID
-    let profileConfig: any
+    let profileConfig: NextDNSProfileConfig
     if (isBusinessAccount) {
       // For business accounts, we don't have API access, so generate
       const client = new NextDNSClient('dummy-key')
