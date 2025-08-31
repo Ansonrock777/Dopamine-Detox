@@ -64,18 +64,24 @@ export async function getBlockedWebsites(userId: string): Promise<BlockedWebsite
 
       if (error) {
         console.error('RLS query error for blocked websites:', error)
-        throw new Error(`Failed to fetch blocked websites: ${error.message}`)
+        // Don't throw here - return empty array as fallback
+        console.warn('Returning empty array due to RLS query error')
+        return []
       }
       
       console.log('Blocked websites found via RLS:', data?.length || 0)
       return data || []
     } catch (error) {
-      console.error('Error in getBlockedWebsites:', error)
-      throw error
+      console.error('RLS attempt failed for blocked websites:', error)
+      // Return empty array instead of throwing
+      console.warn('Returning empty array due to RLS failure')
+      return []
     }
   } catch (error) {
     console.error('Error in getBlockedWebsites:', error)
-    throw error
+    // Return empty array as final fallback instead of throwing
+    console.warn('Returning empty array as final fallback')
+    return []
   }
 }
 

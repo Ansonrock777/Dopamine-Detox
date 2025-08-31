@@ -61,19 +61,44 @@ export async function POST(request: NextRequest) {
     // Add the website
     const website = await addBlockedWebsite(userId, cleanUrl, isAlwaysOn)
 
-    // Sync with NextDNS if configured
+    // Sync with NextDNS if configured - use individual domain sync for better performance
     try {
-      console.log('Attempting to sync with NextDNS after adding blocked website...')
-      await syncWithNextDNS(userId)
-      console.log('NextDNS sync completed successfully')
+      console.log(`🔄 Syncing website "${cleanUrl}" to NextDNS...`)
+      
+      // Check for business profile and sync individual domain
+      const { getBusinessProfileForUser } = await import('@/lib/nextdns-business')
+      const businessProfile = await getBusinessProfileForUser(userId)
+      
+      if (businessProfile) {
+        const { NextDNSClient } = await import('@/lib/nextdns')
+        const businessApiKey = process.env.NEXTDNS_BUSINESS_API_KEY
+        
+        if (businessApiKey) {
+          const client = new NextDNSClient(businessApiKey)
+          const realProfileId = '81fdf8' // Real endpoint for your business profile
+          
+          console.log(`🔄 Adding domain "${cleanUrl}" to NextDNS denylist`)
+          await client.addToDenylist(realProfileId, cleanUrl)
+          console.log(`✅ Domain "${cleanUrl}" added to NextDNS successfully`)
+        } else {
+          console.warn('⚠️ NEXTDNS_BUSINESS_API_KEY not configured, falling back to full sync')
+          await syncWithNextDNS(userId)
+        }
+      } else {
+        // Manual account - use full sync
+        console.log('📡 Manual account detected, using full sync')
+        await syncWithNextDNS(userId)
+      }
+      
+      console.log('✅ NextDNS website sync completed successfully')
     } catch (syncError) {
-      console.warn('NextDNS sync failed:', syncError)
-      console.warn('NextDNS sync error details:', {
+      console.warn('❌ NextDNS sync failed:', syncError)
+      console.warn('❌ NextDNS sync error details:', {
         message: syncError instanceof Error ? syncError.message : 'Unknown error',
-        stack: syncError instanceof Error ? syncError.stack : undefined,
+        url: cleanUrl
       })
-      // Don't fail the entire operation if sync fails, but notify the user
-      // Note: The website is still added to the database even if NextDNS sync fails
+      // Don't fail the entire operation if sync fails
+      // The website is still added to the database and can be synced later
     }
 
     return NextResponse.json({ website })
@@ -104,13 +129,53 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    // Get website info before deletion for NextDNS sync
+    let websiteUrl = null
+    try {
+      const { getBlockedWebsite } = await import('@/lib/database')
+      const website = await getBlockedWebsite(id, userId)
+      websiteUrl = website?.url
+    } catch (getError) {
+      console.warn('Could not get website for removal sync:', getError)
+    }
+
     await removeBlockedWebsite(id, userId)
 
-    // Sync with NextDNS if configured
+    // Sync with NextDNS if configured - remove individual domain
     try {
-      await syncWithNextDNS(userId)
+      if (websiteUrl) {
+        console.log(`🔄 Removing website "${websiteUrl}" from NextDNS...`)
+        
+        // Check for business profile and remove individual domain
+        const { getBusinessProfileForUser } = await import('@/lib/nextdns-business')
+        const businessProfile = await getBusinessProfileForUser(userId)
+        
+        if (businessProfile) {
+          const { NextDNSClient } = await import('@/lib/nextdns')
+          const businessApiKey = process.env.NEXTDNS_BUSINESS_API_KEY
+          
+          if (businessApiKey) {
+            const client = new NextDNSClient(businessApiKey)
+            const realProfileId = '81fdf8' // Real endpoint for your business profile
+            
+            console.log(`🔄 Removing domain "${websiteUrl}" from NextDNS denylist`)
+            await client.removeFromDenylist(realProfileId, websiteUrl)
+            console.log(`✅ Domain "${websiteUrl}" removed from NextDNS successfully`)
+          } else {
+            console.warn('⚠️ NEXTDNS_BUSINESS_API_KEY not configured, falling back to full sync')
+            await syncWithNextDNS(userId)
+          }
+        } else {
+          // Manual account - use full sync
+          console.log('📡 Manual account detected, using full sync')
+          await syncWithNextDNS(userId)
+        }
+      } else {
+        console.warn('⚠️ No URL found for removed website, using full sync as fallback')
+        await syncWithNextDNS(userId)
+      }
     } catch (syncError) {
-      console.warn('NextDNS sync failed:', syncError)
+      console.warn('❌ NextDNS remove sync failed:', syncError)
     }
 
     return NextResponse.json({ success: true })

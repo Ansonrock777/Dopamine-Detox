@@ -1039,5 +1039,121 @@ CREATE TRIGGER trigger_sync_business_profile_status
     EXECUTE FUNCTION sync_profile_business_status();
 
 -- ==================================================
+-- 14. NEXTDNS PROFILE CONFIGURATION CACHE
+-- ==================================================
+
+-- Table to cache NextDNS profile configuration data for dashboard display
+CREATE TABLE IF NOT EXISTS nextdns_profile_config (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id TEXT REFERENCES profiles(id) ON DELETE CASCADE,
+    profile_name VARCHAR(100) NOT NULL, -- From profiles.nextdns_profile_name
+    endpoint_id VARCHAR(20) NOT NULL, -- e.g., "81fdf8"
+    dns_server_primary VARCHAR(50) NOT NULL, -- e.g., "45.90.28.240"
+    dns_server_secondary VARCHAR(50) NOT NULL, -- e.g., "45.90.30.240" 
+    dns_over_tls VARCHAR(100) NOT NULL, -- e.g., "81fdf8.dns.nextdns.io"
+    dns_over_https VARCHAR(200) NOT NULL, -- e.g., "https://dns.nextdns.io/81fdf8"
+    ipv6_address_1 VARCHAR(50), -- e.g., "2a07:a8c0:81:fdf8"
+    ipv6_address_2 VARCHAR(50), -- e.g., "2a07:a8c1:81:fdf8"
+    is_business_account BOOLEAN DEFAULT false,
+    last_synced TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id) -- One config cache per user
+);
+
+-- Index for performance
+CREATE INDEX IF NOT EXISTS idx_nextdns_profile_config_user ON nextdns_profile_config(user_id);
+CREATE INDEX IF NOT EXISTS idx_nextdns_profile_config_profile_name ON nextdns_profile_config(user_id, profile_name);
+
+-- Enable RLS
+ALTER TABLE nextdns_profile_config ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DO $$ BEGIN
+    CREATE POLICY "Users can manage own profile config" ON nextdns_profile_config 
+    FOR ALL 
+    USING (user_id = current_setting('app.current_user_id', true))
+    WITH CHECK (user_id = current_setting('app.current_user_id', true));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- Trigger to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_nextdns_profile_config_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_nextdns_profile_config_timestamp
+    BEFORE UPDATE ON nextdns_profile_config
+    FOR EACH ROW
+    EXECUTE FUNCTION update_nextdns_profile_config_timestamp();
+
+-- Function to get user's profile configuration
+CREATE OR REPLACE FUNCTION get_user_profile_config(p_user_id TEXT)
+RETURNS nextdns_profile_config AS $$
+DECLARE
+    config_record nextdns_profile_config;
+BEGIN
+    PERFORM set_config('app.current_user_id', p_user_id, true);
+    
+    SELECT * INTO config_record
+    FROM nextdns_profile_config 
+    WHERE user_id = p_user_id;
+    
+    RETURN config_record;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to upsert profile configuration
+CREATE OR REPLACE FUNCTION upsert_profile_config(
+    p_user_id TEXT,
+    p_profile_name VARCHAR(100),
+    p_endpoint_id VARCHAR(20),
+    p_dns_server_primary VARCHAR(50),
+    p_dns_server_secondary VARCHAR(50),
+    p_dns_over_tls VARCHAR(100),
+    p_dns_over_https VARCHAR(200),
+    p_ipv6_address_1 VARCHAR(50) DEFAULT NULL,
+    p_ipv6_address_2 VARCHAR(50) DEFAULT NULL,
+    p_is_business_account BOOLEAN DEFAULT false
+)
+RETURNS nextdns_profile_config AS $$
+DECLARE
+    config_record nextdns_profile_config;
+BEGIN
+    PERFORM set_config('app.current_user_id', p_user_id, true);
+    
+    INSERT INTO nextdns_profile_config (
+        user_id, profile_name, endpoint_id, dns_server_primary, dns_server_secondary,
+        dns_over_tls, dns_over_https, ipv6_address_1, ipv6_address_2, is_business_account,
+        last_synced
+    ) VALUES (
+        p_user_id, p_profile_name, p_endpoint_id, p_dns_server_primary, p_dns_server_secondary,
+        p_dns_over_tls, p_dns_over_https, p_ipv6_address_1, p_ipv6_address_2, p_is_business_account,
+        NOW()
+    ) 
+    ON CONFLICT (user_id) 
+    DO UPDATE SET 
+        profile_name = EXCLUDED.profile_name,
+        endpoint_id = EXCLUDED.endpoint_id,
+        dns_server_primary = EXCLUDED.dns_server_primary,
+        dns_server_secondary = EXCLUDED.dns_server_secondary,
+        dns_over_tls = EXCLUDED.dns_over_tls,
+        dns_over_https = EXCLUDED.dns_over_https,
+        ipv6_address_1 = EXCLUDED.ipv6_address_1,
+        ipv6_address_2 = EXCLUDED.ipv6_address_2,
+        is_business_account = EXCLUDED.is_business_account,
+        last_synced = NOW(),
+        updated_at = NOW()
+    RETURNING * INTO config_record;
+    
+    RETURN config_record;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ==================================================
 -- MVP SCHEMA COMPLETE ✅
 -- ==================================================

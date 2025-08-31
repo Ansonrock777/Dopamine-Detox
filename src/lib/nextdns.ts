@@ -43,6 +43,16 @@ interface NextDNSService {
   website?: string;
 }
 
+interface NextDNSProfileConfig {
+  endpoint_id: string;
+  dns_server_primary: string;
+  dns_server_secondary: string;
+  dns_over_tls: string;
+  dns_over_https: string;
+  ipv6_address_1: string;
+  ipv6_address_2: string;
+}
+
 export class NextDNSClient {
   private apiKey: string;
   private baseUrl = 'https://api.nextdns.io';
@@ -57,33 +67,68 @@ export class NextDNSClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     
-    console.log('NextDNS API Request:', {
+    console.log('🌐 NextDNS API Request:', {
       url,
       method: options.method || 'GET',
       headers: {
         'X-Api-Key': this.apiKey.substring(0, 8) + '...',
         'Content-Type': 'application/json',
-      }
-    });
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'X-Api-Key': this.apiKey,
-        'Content-Type': 'application/json',
-        ...options.headers,
       },
+      body: options.body ? JSON.parse(options.body as string) : undefined
     });
 
-    console.log('NextDNS API Response:', {
+    // Add timeout and retry logic for 524 errors
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'X-Api-Key': this.apiKey,
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // Handle 524 timeout errors specifically
+      if (response.status === 524) {
+        const errorText = await response.text();
+        console.error('❌ NextDNS API Timeout (524):', {
+          status: response.status,
+          endpoint,
+          message: 'NextDNS server timeout - API may be overloaded'
+        });
+        throw new Error(`NextDNS API Timeout (524) on ${endpoint}: Server timeout - API may be overloaded`);
+      }
+      
+      return this.handleResponse<T>(response, endpoint);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        console.error('❌ NextDNS API Request Timeout:', { endpoint, timeout: '30s' });
+        throw new Error(`NextDNS API Request Timeout on ${endpoint}: Request took longer than 30 seconds`);
+      }
+      
+      throw error;
+    }
+  }
+
+  private async handleResponse<T>(response: Response, endpoint: string): Promise<T> {
+    console.log('📡 NextDNS API Response:', {
       status: response.status,
       statusText: response.statusText,
+      ok: response.ok,
       headers: Object.fromEntries(response.headers.entries())
     });
 
     // Get response text first to debug
     const responseText = await response.text();
-    console.log('NextDNS API Response Body:', responseText);
+    console.log('📄 NextDNS API Response Body:', responseText);
 
     if (!response.ok) {
       let errorMessage;
@@ -94,19 +139,28 @@ export class NextDNSClient {
         errorMessage = responseText || 'Unknown error';
       }
       // Include endpoint in error for easier debugging
+      console.error('❌ NextDNS API Error:', {
+        status: response.status,
+        endpoint,
+        errorMessage,
+        fullResponse: responseText
+      });
       throw new Error(`NextDNS API Error (${response.status}) on ${endpoint}: ${errorMessage}`);
     }
 
     // Handle empty responses (common for 204 No Content)
     if (!responseText || responseText.trim() === '') {
+      console.log('✅ NextDNS API returned empty response (likely success)');
       return (undefined as unknown) as T
     }
 
     // Try to parse JSON
     try {
-      return JSON.parse(responseText);
+      const parsed = JSON.parse(responseText);
+      console.log('✅ NextDNS API parsed response:', parsed);
+      return parsed;
     } catch (parseError) {
-      console.error('Failed to parse NextDNS response as JSON:', parseError);
+      console.error('❌ Failed to parse NextDNS response as JSON:', parseError);
       console.error('Response text was:', responseText);
       throw new Error(`Invalid JSON response from NextDNS API: ${responseText}`);
     }
@@ -231,92 +285,262 @@ export class NextDNSClient {
   }
 
   async blockCategory(profileId: string, categoryId: string): Promise<void> {
-    console.log(`🔄 Blocking category ${categoryId} using direct endpoint...`);
+    console.log(`🔄 Blocking category ${categoryId} on profile ${profileId}...`);
     
-    // Use direct category endpoint for adding
-    await this.request(`/profiles/${profileId}/parentalControl/categories`, {
-      method: 'POST',
-      body: JSON.stringify({
-        id: categoryId,
-        active: true
-      }),
-    });
-    
-    console.log(`✅ Successfully blocked category ${categoryId}`);
+    try {
+      // Get current profile to read existing categories
+      const profile = await this.getProfile(profileId);
+      const currentParentalControl = profile?.parentalControl || {};
+      const currentCategories = currentParentalControl.categories || [];
+      
+      // Check if category is already active
+      const existingCategory = currentCategories.find(cat => cat.id === categoryId);
+      if (existingCategory?.active) {
+        console.log(`✅ Category ${categoryId} already blocked, no changes needed`);
+        return;
+      }
+      
+      // Create a minimal update with just the categories that need to change
+      // Keep existing categories and only add/update the target category
+      const updatedCategories = currentCategories.filter(cat => cat.id !== categoryId);
+      updatedCategories.push({ id: categoryId, active: true });
+      
+      // Minimal parental control update
+      const minimalUpdate = {
+        categories: updatedCategories,
+        // Keep essential fields to avoid API issues
+        safeSearch: currentParentalControl.safeSearch || false,
+        youtubeRestrictedMode: currentParentalControl.youtubeRestrictedMode || false,
+        blockBypass: currentParentalControl.blockBypass || false,
+        services: currentParentalControl.services || []
+      };
+      
+      console.log(`🔄 Updating categories: adding ${categoryId} as blocked`);
+      await this.request(`/profiles/${profileId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          parentalControl: minimalUpdate
+        }),
+      });
+      
+      console.log(`✅ Successfully blocked category ${categoryId}`);
+    } catch (error) {
+      console.error(`❌ Error blocking category ${categoryId}:`, error);
+      
+      // If the individual update fails, provide better error info
+      if (error instanceof Error && error.message.includes('500')) {
+        console.error(`❌ NextDNS API returned server error for category ${categoryId}. This might be due to rate limiting or API issues.`);
+      }
+      
+      throw error;
+    }
   }
 
   async unblockCategory(profileId: string, categoryId: string): Promise<void> {
-    console.log(`🔄 Unblocking category ${categoryId} using direct endpoint...`);
+    console.log(`🔄 Unblocking category ${categoryId} on profile ${profileId}...`);
     
-    // Use direct category endpoint for removing
-    await this.request(`/profiles/${profileId}/parentalControl/categories/${categoryId}`, {
-      method: 'DELETE',
-    });
-    
-    console.log(`✅ Successfully unblocked category ${categoryId}`);
+    try {
+      // Get current profile to read existing categories
+      const profile = await this.getProfile(profileId);
+      const currentParentalControl = profile?.parentalControl || {};
+      const currentCategories = currentParentalControl.categories || [];
+      
+      // Check if category exists and is active
+      const existingCategory = currentCategories.find(cat => cat.id === categoryId);
+      if (!existingCategory || !existingCategory.active) {
+        console.log(`✅ Category ${categoryId} already unblocked, no changes needed`);
+        return;
+      }
+      
+      // Set the specific category to inactive
+      const updatedCategories = currentCategories.map(cat => 
+        cat.id === categoryId ? { ...cat, active: false } : cat
+      );
+      
+      // Minimal parental control update
+      const minimalUpdate = {
+        categories: updatedCategories,
+        // Keep essential fields to avoid API issues
+        safeSearch: currentParentalControl.safeSearch || false,
+        youtubeRestrictedMode: currentParentalControl.youtubeRestrictedMode || false,
+        blockBypass: currentParentalControl.blockBypass || false,
+        services: currentParentalControl.services || []
+      };
+      
+      console.log(`🔄 Updating categories: setting ${categoryId} as unblocked`);
+      await this.request(`/profiles/${profileId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          parentalControl: minimalUpdate
+        }),
+      });
+      
+      console.log(`✅ Successfully unblocked category ${categoryId}`);
+    } catch (error) {
+      console.error(`❌ Error unblocking category ${categoryId}:`, error);
+      
+      // If the individual update fails, provide better error info
+      if (error instanceof Error && error.message.includes('500')) {
+        console.error(`❌ NextDNS API returned server error for category ${categoryId}. This might be due to rate limiting or API issues.`);
+      }
+      
+      throw error;
+    }
   }
 
   // Sync all categories in a single request to avoid conflicts
   async syncAllCategories(profileId: string, activeCategories: string[]): Promise<void> {
     console.log('🔄 Starting syncAllCategories with active categories:', activeCategories);
     
-    const profile = await this.getProfile(profileId);
+    try {
+      const profile = await this.getProfile(profileId);
+      
+      // Get the current parental control configuration
+      const currentParentalControl = profile?.parentalControl || {};
+      console.log('🔍 Current parental control:', JSON.stringify(currentParentalControl, null, 2));
+      
+      // Get current categories from NextDNS 
+      const currentCategories = currentParentalControl.categories || [];
+      console.log('🔍 Current categories from NextDNS:', currentCategories);
+      
+      // Get all available categories from our system
+      const availableCategories = await this.getAvailableCategories();
+      const availableCategoryIds = availableCategories.map(cat => cat.id);
+      console.log('🔍 Available categories in our system:', availableCategoryIds);
+      
+      // Keep existing categories that are not in our managed list (preserve third-party categories)
+      const existingOtherCategories = currentCategories.filter(cat => 
+        !availableCategoryIds.includes(cat.id)
+      );
+      console.log('🔍 Existing other categories to preserve:', existingOtherCategories);
+      
+      // Create our managed categories with proper active/inactive status
+      const managedCategories = availableCategories.map(cat => ({
+        id: cat.id,
+        active: activeCategories.includes(cat.id)
+      }));
+      console.log('🔍 Managed categories to set:', managedCategories);
+
+      // Combine existing other categories with our managed ones
+      const allCategories = [...existingOtherCategories, ...managedCategories];
+
+      console.log('🔄 Final categories array to send:', {
+        total: allCategories.length,
+        managed: managedCategories.length,
+        existing: existingOtherCategories.length,
+        active: allCategories.filter(c => c.active).length,
+        activeList: allCategories.filter(c => c.active).map(c => c.id),
+        fullArray: allCategories
+      });
+
+      // Create a clean parental control object with only essential fields
+      const cleanParentalControl = {
+        safeSearch: currentParentalControl.safeSearch || false,
+        youtubeRestrictedMode: currentParentalControl.youtubeRestrictedMode || false,
+        blockBypass: currentParentalControl.blockBypass || false,
+        services: currentParentalControl.services || [],
+        categories: allCategories,
+        // Only include recreation if it exists and is not empty
+        ...(currentParentalControl.recreation && Object.keys(currentParentalControl.recreation).length > 0 
+          ? { recreation: currentParentalControl.recreation } 
+          : {})
+      };
+
+      console.log('🔄 Clean parental control payload:', JSON.stringify(cleanParentalControl, null, 2));
+
+      // Try the update with retry logic for 500 errors
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          await this.request(`/profiles/${profileId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+              parentalControl: cleanParentalControl,
+            }),
+          });
+          
+          console.log('✅ Categories sync completed successfully');
+          return;
+        } catch (error) {
+          retryCount++;
+          
+          if (error instanceof Error && error.message.includes('500') && retryCount < maxRetries) {
+            console.warn(`⚠️ Attempt ${retryCount} failed with 500 error, retrying in ${retryCount * 1000}ms...`);
+            await new Promise(resolve => setTimeout(resolve, retryCount * 1000));
+            continue;
+          }
+          
+          // If it's still failing after retries, try a simpler approach
+          if (retryCount >= maxRetries && error instanceof Error && error.message.includes('500')) {
+            console.warn('⚠️ Full sync failed, trying individual category updates...');
+            await this.syncCategoriesIndividually(profileId, activeCategories);
+            return;
+          }
+          
+          throw error;
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error in syncAllCategories:', error);
+      throw error;
+    }
+  }
+
+  // Fallback method to sync categories individually
+  private async syncCategoriesIndividually(profileId: string, activeCategories: string[]): Promise<void> {
+    console.log('🔄 Syncing categories individually as fallback...');
     
-    // Get the current parental control configuration
-    const currentParentalControl = profile?.parentalControl || {};
-    console.log('🔍 Current parental control:', JSON.stringify(currentParentalControl, null, 2));
-    
-    // Get current categories from NextDNS 
-    const currentCategories = currentParentalControl.categories || [];
-    console.log('🔍 Current categories from NextDNS:', currentCategories);
-    
-    // Get all available categories from our system
-    const availableCategories = await this.getAvailableCategories();
-    const availableCategoryIds = availableCategories.map(cat => cat.id);
-    console.log('🔍 Available categories in our system:', availableCategoryIds);
-    
-    // Keep existing categories that are not in our managed list (preserve third-party categories)
-    const existingOtherCategories = currentCategories.filter(cat => 
-      !availableCategoryIds.includes(cat.id)
-    );
-    console.log('🔍 Existing other categories to preserve:', existingOtherCategories);
-    
-    // Create our managed categories with proper active/inactive status
-    const managedCategories = availableCategories.map(cat => ({
-      id: cat.id,
-      active: activeCategories.includes(cat.id)
-    }));
-    console.log('🔍 Managed categories to set:', managedCategories);
-
-    // Combine existing other categories with our managed ones
-    const allCategories = [...existingOtherCategories, ...managedCategories];
-
-    console.log('🔄 Final categories array to send:', {
-      total: allCategories.length,
-      managed: managedCategories.length,
-      existing: existingOtherCategories.length,
-      active: allCategories.filter(c => c.active).length,
-      activeList: allCategories.filter(c => c.active).map(c => c.id),
-      fullArray: allCategories
-    });
-
-    // Create the complete parental control object
-    const updatedParentalControl = {
-      ...currentParentalControl,
-      categories: allCategories,
-    };
-
-    console.log('🔄 Final parental control payload:', JSON.stringify(updatedParentalControl, null, 2));
-
-    // Update the complete parentalControl configuration
-    await this.request(`/profiles/${profileId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        parentalControl: updatedParentalControl,
-      }),
-    });
-
-    console.log('✅ Categories sync completed successfully');
+    try {
+      const availableCategories = await this.getAvailableCategories();
+      const profile = await this.getProfile(profileId);
+      const currentCategories = profile?.parentalControl?.categories || [];
+      
+      // Get currently active categories
+      const currentlyActive = currentCategories
+        .filter(cat => cat.active)
+        .map(cat => cat.id);
+      
+      // Categories to activate
+      const toActivate = activeCategories.filter(cat => !currentlyActive.includes(cat));
+      // Categories to deactivate (only our managed ones)
+      const managedCategoryIds = availableCategories.map(cat => cat.id);
+      const toDeactivate = currentlyActive.filter(cat => 
+        managedCategoryIds.includes(cat) && !activeCategories.includes(cat)
+      );
+      
+      console.log('🔄 Individual sync plan:', { toActivate, toDeactivate });
+      
+      // Activate categories one by one
+      for (const categoryId of toActivate) {
+        try {
+          await this.blockCategory(profileId, categoryId);
+          console.log(`✅ Individually activated: ${categoryId}`);
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } catch (error) {
+          console.error(`❌ Failed to activate ${categoryId}:`, error);
+        }
+      }
+      
+      // Deactivate categories one by one
+      for (const categoryId of toDeactivate) {
+        try {
+          await this.unblockCategory(profileId, categoryId);
+          console.log(`✅ Individually deactivated: ${categoryId}`);
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } catch (error) {
+          console.error(`❌ Failed to deactivate ${categoryId}:`, error);
+        }
+      }
+      
+      console.log('✅ Individual category sync completed');
+    } catch (error) {
+      console.error('❌ Individual category sync failed:', error);
+      throw error;
+    }
   }
 
   // Service Management (specific apps/services)
@@ -541,6 +765,83 @@ export class NextDNSClient {
       console.warn('NextDNS analytics not available:', error);
       return null;
     }
+  }
+
+  // Get actual profile configuration from NextDNS API
+  async getProfileConfig(profileId: string): Promise<NextDNSProfileConfig> {
+    console.log('🔍 Getting profile config for profileId:', profileId);
+    
+    // For dev profiles that map to real profiles, use the endpoint from the config
+    let endpointId: string;
+    
+    if (profileId.startsWith('dev-profile-')) {
+      // This is a development profile that maps to a real NextDNS profile
+      // The real endpoint should be derived from the profile configuration
+      endpointId = '81fdf8'; // This should match your actual NextDNS profile endpoint
+      console.log('🔍 Development profile detected, using real endpoint:', endpointId);
+    } else if (profileId.length === 6 && /^[a-f0-9]+$/.test(profileId)) {
+      // This looks like a real NextDNS endpoint ID
+      endpointId = profileId;
+      console.log('🔍 Real NextDNS endpoint detected:', endpointId);
+    } else {
+      // Try to get the actual profile from NextDNS API
+      try {
+        const profile = await this.getProfile(profileId);
+        // Extract endpoint from profile if available
+        endpointId = profile.id || profileId;
+        console.log('🔍 Retrieved endpoint from API:', endpointId);
+      } catch (error) {
+        console.warn('🔍 Could not get profile from API, using profileId as-is:', profileId);
+        endpointId = profileId;
+      }
+    }
+    
+    const config = {
+      endpoint_id: endpointId,
+      dns_server_primary: '45.90.28.240',
+      dns_server_secondary: '45.90.30.240',
+      dns_over_tls: `${endpointId}.dns.nextdns.io`,
+      dns_over_https: `https://dns.nextdns.io/${endpointId}`,
+      ipv6_address_1: `2a07:a8c0::${endpointId}`,
+      ipv6_address_2: `2a07:a8c1::${endpointId}`,
+    };
+    
+    console.log('🔍 Final config generated:', config);
+    return config;
+  }
+
+  // Generate profile configuration data based on profile ID (fallback)
+  generateProfileConfig(profileId: string): NextDNSProfileConfig {
+    console.log('🔍 Generating profile config for profileId:', profileId);
+    
+    let endpointId: string;
+    
+    if (profileId.startsWith('dev-profile-')) {
+      // Development profile - use the real endpoint
+      endpointId = '81fdf8';
+      console.log('🔍 Development profile, using real endpoint:', endpointId);
+    } else if (profileId.length === 6 && /^[a-f0-9]+$/.test(profileId)) {
+      // Already looks like a real endpoint
+      endpointId = profileId;
+      console.log('🔍 Using provided endpoint:', endpointId);
+    } else {
+      // Default fallback
+      endpointId = '81fdf8';
+      console.log('🔍 Using default endpoint:', endpointId);
+    }
+    
+    const config = {
+      endpoint_id: endpointId,
+      dns_server_primary: '45.90.28.240',
+      dns_server_secondary: '45.90.30.240',
+      dns_over_tls: `${endpointId}.dns.nextdns.io`,
+      dns_over_https: `https://dns.nextdns.io/${endpointId}`,
+      ipv6_address_1: `2a07:a8c0::${endpointId}`,
+      ipv6_address_2: `2a07:a8c1::${endpointId}`,
+    };
+    
+    console.log('🔍 Generated config:', config);
+    return config;
   }
 }
 

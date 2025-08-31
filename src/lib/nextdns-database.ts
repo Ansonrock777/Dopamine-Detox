@@ -96,6 +96,23 @@ export interface NextDNSSyncLog {
   created_at: string
 }
 
+export interface NextDNSProfileConfig {
+  id: string
+  user_id: string
+  profile_name: string
+  endpoint_id: string
+  dns_server_primary: string
+  dns_server_secondary: string
+  dns_over_tls: string
+  dns_over_https: string
+  ipv6_address_1?: string
+  ipv6_address_2?: string
+  is_business_account: boolean
+  last_synced: string
+  created_at: string
+  updated_at: string
+}
+
 // NextDNS Account Management
 export async function getNextDNSAccount(userId: string): Promise<NextDNSAccount | null> {
   try {
@@ -683,6 +700,17 @@ export async function getNextDNSSyncLog(userId: string): Promise<NextDNSSyncLog[
 // Helper function to check if NextDNS is configured
 export async function isNextDNSConfigured(userId: string): Promise<boolean> {
   try {
+    // Prefer business-managed profile if present
+    try {
+      const { getBusinessProfileForUser } = await import('./nextdns-business')
+      const businessProfile = await getBusinessProfileForUser(userId)
+      if (businessProfile) {
+        return true
+      }
+    } catch {
+      // Ignore and fall back to manual account check
+    }
+
     const account = await getNextDNSAccount(userId)
     return account !== null && account.is_active
   } catch {
@@ -719,5 +747,288 @@ async function getBlockedWebsites(userId: string) {
     console.error('Error in getBlockedWebsites:', error)
     // Don't throw here - return empty array as fallback
     return []
+  }
+}
+
+// NextDNS Profile Configuration Cache Management
+export async function getProfileConfig(userId: string): Promise<NextDNSProfileConfig | null> {
+  try {
+    console.log('Getting NextDNS profile config for user:', userId)
+    
+    return await executeWithContext(
+      userId,
+      async (client) => {
+        const db = client ?? supabase
+        const { data, error } = await db
+          .from('nextdns_profile_config')
+          .select('*')
+          .eq('user_id', userId)
+          .single()
+
+        if (error) {
+          if (error.code === 'PGRST116') {
+            console.log('No profile config found for user:', userId)
+            return null
+          }
+          console.error('Database query error for profile config:', error)
+          throw error
+        }
+        
+        console.log('Profile config found:', { id: data.id, profile_name: data.profile_name, last_synced: data.last_synced })
+        return data
+      },
+      'getProfileConfig'
+    )
+  } catch (error) {
+    console.error('Error in getProfileConfig:', error)
+    return null
+  }
+}
+
+export async function syncProfileConfig(userId: string): Promise<NextDNSProfileConfig | null> {
+  try {
+    console.log('🔄 Syncing NextDNS profile configuration for user:', userId)
+    
+    // First check for business profile
+    const { getBusinessProfileForUser } = await import('./nextdns-business')
+    const businessProfile = await getBusinessProfileForUser(userId)
+    
+    let profileId: string
+    let profileName: string
+    let isBusinessAccount: boolean
+    
+    if (businessProfile) {
+      console.log('✅ Business profile found, using profile:', businessProfile.nextdns_profile_id)
+      profileId = businessProfile.nextdns_profile_id
+      profileName = businessProfile.profile_name
+      isBusinessAccount = true
+    } else {
+      // Fall back to manual account
+      const account = await getNextDNSAccount(userId)
+      if (!account) {
+        console.log('❌ No NextDNS account (business or manual) found for profile config sync')
+        return null
+      }
+      console.log('✅ Manual NextDNS account found, using profile:', account.profile_id)
+      profileId = account.profile_id
+      profileName = account.profile_name
+      isBusinessAccount = false
+    }
+    
+    // Get configuration based on profile ID
+    let profileConfig: any
+    if (isBusinessAccount) {
+      // For business accounts, we don't have API access, so generate
+      const client = new NextDNSClient('dummy-key')
+      profileConfig = client.generateProfileConfig(profileId)
+    } else {
+      // For manual accounts, try to get real data from NextDNS API
+      const account = await getNextDNSAccount(userId)
+      if (account?.api_key) {
+        const client = new NextDNSClient(account.api_key)
+        try {
+          profileConfig = await client.getProfileConfig(profileId)
+        } catch (error) {
+          console.log('Failed to get real config, falling back to generated:', error)
+          profileConfig = client.generateProfileConfig(profileId)
+        }
+      } else {
+        const client = new NextDNSClient('dummy-key')
+        profileConfig = client.generateProfileConfig(profileId)
+      }
+    }
+    
+    console.log('📋 Generated config:', {
+      endpoint_id: profileConfig.endpoint_id,
+      profile_name: profileName,
+      is_business: isBusinessAccount
+    })
+
+    // Store in database
+    return await executeWithContext(
+      userId,
+      async (client) => {
+        const db = client ?? supabase
+        const { data, error } = await db
+          .from('nextdns_profile_config')
+          .upsert({
+            user_id: userId,
+            profile_name: profileName,
+            endpoint_id: profileConfig.endpoint_id,
+            dns_server_primary: profileConfig.dns_server_primary,
+            dns_server_secondary: profileConfig.dns_server_secondary,
+            dns_over_tls: profileConfig.dns_over_tls,
+            dns_over_https: profileConfig.dns_over_https,
+            ipv6_address_1: profileConfig.ipv6_address_1,
+            ipv6_address_2: profileConfig.ipv6_address_2,
+            is_business_account: isBusinessAccount,
+            last_synced: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id'
+          })
+          .select()
+          .single()
+
+        if (error) {
+          console.error('Database upsert error for profile config:', error)
+          throw error
+        }
+        
+        console.log('✅ Profile configuration synced successfully:', data)
+        return data
+      },
+      'syncProfileConfig'
+    )
+  } catch (error) {
+    console.error('❌ Error syncing profile configuration:', error)
+    throw error
+  }
+}
+
+export async function ensureProfileConfigSynced(userId: string): Promise<NextDNSProfileConfig | null> {
+  try {
+    // Check if we have cached config
+    let config = await getProfileConfig(userId)
+    
+    if (!config) {
+      console.log('📥 No cached profile config, syncing from NextDNS...')
+      config = await syncProfileConfig(userId)
+    } else {
+      // Check if config is older than 1 hour
+      const lastSynced = new Date(config.last_synced)
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+      
+      if (lastSynced < oneHourAgo) {
+        console.log('🔄 Cached config is stale, refreshing...')
+        const freshConfig = await syncProfileConfig(userId)
+        if (freshConfig) {
+          config = freshConfig
+        }
+      }
+    }
+    
+    return config
+  } catch (error) {
+    console.error('Error ensuring profile config synced:', error)
+    return null
+  }
+}
+
+// Sync user preferences to real business profile (when dev profile exists but points to real profile)
+export async function syncWithRealBusinessProfile(userId: string, realProfileId: string): Promise<void> {
+  try {
+    console.log('🔄 Starting real business profile sync for user:', userId, 'to profile:', realProfileId)
+    
+    const businessApiKey = process.env.NEXTDNS_BUSINESS_API_KEY
+    if (!businessApiKey) {
+      throw new Error('NEXTDNS_BUSINESS_API_KEY not configured')
+    }
+
+    // Initialize categories if none exist
+    console.log('🔍 Checking user categories...')
+    let categories = await getNextDNSCategories(userId)
+    if (categories.length === 0) {
+      console.log('📋 No categories found, initializing...')
+      await initializeNextDNSCategories(userId)
+      categories = await getNextDNSCategories(userId)
+      console.log('✅ Categories initialized:', categories.length)
+    }
+
+    // Get user's blocking preferences
+    console.log('📊 Fetching user blocking preferences...')
+    const [blockedSites, refreshedCategories] = await Promise.all([
+      getBlockedWebsites(userId),
+      getNextDNSCategories(userId) // Refresh after potential initialization
+    ])
+
+    console.log('📈 User blocking data:', {
+      blockedSites: blockedSites.length,
+      categories: refreshedCategories.length,
+      alwaysOnSites: blockedSites.filter(site => site.is_always_on).length,
+      blockedCategories: refreshedCategories.filter(cat => cat.is_blocked).length
+    })
+
+    // Prepare data for sync
+    const domainsToBlock = blockedSites
+      .filter(site => site.is_always_on)
+      .map(site => site.url)
+      .filter(url => url && url.trim()) // Remove empty/invalid URLs
+
+    const categoriesToBlock = refreshedCategories
+      .filter(cat => cat.is_blocked)
+      .map(cat => cat.category_id)
+
+    console.log('🎯 Sync data prepared:', {
+      domainsToBlock: domainsToBlock.length > 0 ? domainsToBlock : 'none',
+      categoriesToBlock: categoriesToBlock.length > 0 ? categoriesToBlock : 'none',
+      totalDomains: domainsToBlock.length,
+      totalCategories: categoriesToBlock.length
+    })
+
+    // Create NextDNS client with business API key
+    console.log('🔌 Creating NextDNS client with business API key...')
+    const { NextDNSClient } = await import('./nextdns')
+    const client = new NextDNSClient(businessApiKey)
+    
+    // Test connection first
+    try {
+      await client.getProfile(realProfileId)
+      console.log('✅ NextDNS connection validated for real profile:', realProfileId)
+    } catch (connectionError) {
+      const error = new Error(`NextDNS connection failed for profile ${realProfileId}: ${connectionError instanceof Error ? connectionError.message : String(connectionError)}`)
+      console.error('❌ NextDNS connection test failed:', connectionError)
+      await logNextDNSOperation(userId, 'sync', 'profile', realProfileId, 'failed', error.message)
+      throw error
+    }
+
+    // Perform the sync
+    console.log('🚀 Starting NextDNS real business profile sync operation...')
+    await client.syncUserBlocking(
+      realProfileId,
+      domainsToBlock,
+      categoriesToBlock,
+      [] // Services will be implemented later
+    )
+
+    console.log('✅ NextDNS real business profile sync completed successfully')
+    console.log('📊 Sync summary:', {
+      profileId: realProfileId,
+      domainsSynced: domainsToBlock.length,
+      categoriesSynced: categoriesToBlock.length,
+      timestamp: new Date().toISOString()
+    })
+
+    // Log successful sync
+    await logNextDNSOperation(
+      userId, 
+      'sync', 
+      'profile', 
+      realProfileId, 
+      'success',
+      `Synced ${domainsToBlock.length} domains and ${categoriesToBlock.length} categories to real business profile`
+    )
+  } catch (error) {
+    console.error('❌ Error syncing with real business profile:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('🔍 Real business profile sync error details:', {
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+      userId,
+      realProfileId,
+      timestamp: new Date().toISOString()
+    })
+    
+    // Log failed sync
+    await logNextDNSOperation(
+      userId, 
+      'sync', 
+      'profile', 
+      realProfileId, 
+      'failed', 
+      errorMessage
+    )
+    
+    throw error
   }
 }

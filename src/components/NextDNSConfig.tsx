@@ -19,13 +19,32 @@ import { toast } from "sonner";
 import type { NextDNSAccount, NextDNSCategory, NextDNSSyncLog } from "@/types";
 import { CategoryReflectionWall } from "@/components/CategoryReflectionWall";
 
+type NextDNSProfileConfig = {
+  id: string;
+  user_id: string;
+  profile_name: string;
+  endpoint_id: string;
+  dns_server_primary: string;
+  dns_server_secondary: string;
+  dns_over_tls: string;
+  dns_over_https: string;
+  ipv6_address_1?: string;
+  ipv6_address_2?: string;
+  is_business_account: boolean;
+  last_synced: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export function NextDNSConfig() {
   const { user } = useAuth();
   const [account, setAccount] = useState<NextDNSAccount | null>(null);
   const [categories, setCategories] = useState<NextDNSCategory[]>([]);
   const [syncLog, setSyncLog] = useState<NextDNSSyncLog[]>([]);
+  const [profileConfig, setProfileConfig] = useState<NextDNSProfileConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   
   // DNS configuration from business profile
   const [dnsConfig, setDnsConfig] = useState<{
@@ -50,7 +69,7 @@ export function NextDNSConfig() {
     if (!user) return;
 
     try {
-      const [accountRes, categoriesRes, syncLogRes] = await Promise.all([
+      const [accountRes, categoriesRes, syncLogRes, profileConfigRes] = await Promise.all([
         fetch('/api/nextdns/account').catch((error) => {
           console.error('Failed to fetch account:', error);
           return new Response(null, { status: 500 });
@@ -61,6 +80,10 @@ export function NextDNSConfig() {
         }),
         fetch('/api/nextdns/sync').catch((error) => {
           console.error('Failed to fetch sync log:', error);
+          return new Response(null, { status: 500 });
+        }),
+        fetch('/api/nextdns/profile-config').catch((error) => {
+          console.error('Failed to fetch profile config:', error);
           return new Response(null, { status: 500 });
         })
       ]);
@@ -96,6 +119,15 @@ export function NextDNSConfig() {
       } else {
         console.log('Sync log request failed');
         setSyncLog([]);
+      }
+
+      if (profileConfigRes.ok) {
+        const profileConfigData = await profileConfigRes.json();
+        console.log('Profile config data received:', profileConfigData);
+        setProfileConfig(profileConfigData.config || null);
+      } else {
+        console.log('Profile config request failed');
+        setProfileConfig(null);
       }
     } catch (error) {
       console.error('Error fetching NextDNS data:', error);
@@ -222,6 +254,29 @@ export function NextDNSConfig() {
   };
 
 
+  const handleSyncProfileConfig = async () => {
+    setSyncing(true);
+    try {
+      const response = await fetch('/api/nextdns/profile-config/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to sync profile configuration');
+      }
+
+      const data = await response.json();
+      setProfileConfig(data.config);
+      toast.success('Profile configuration synced successfully');
+    } catch (error) {
+      console.error('Error syncing profile config:', error);
+      toast.error('Failed to sync profile configuration');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleRemoveAccount = async () => {
     try {
       const response = await fetch('/api/nextdns/account', {
@@ -235,6 +290,7 @@ export function NextDNSConfig() {
       setAccount(null);
       setCategories([]);
       setSyncLog([]);
+      setProfileConfig(null);
       toast.success('NextDNS account removed successfully');
     } catch (error) {
       console.error('Error removing NextDNS account:', error);
@@ -323,8 +379,8 @@ export function NextDNSConfig() {
                     )}
                   </div>
                   <p className="text-gray-400 text-sm">
-                    Profile: {account.profile_id} • 
-                    {account.is_business_profile ? ' Business Account' : ` API Key: ${account.api_key}`}
+                    ID: {account.profile_id}
+                    {!account.is_business_profile && ` • API Key: ${account.api_key}`}
                   </p>
                 </div>
                 <div className="flex space-x-2">
@@ -342,58 +398,116 @@ export function NextDNSConfig() {
                 </div>
               </div>
 
-              {/* DNS Setup Instructions for Business Profiles */}
-              {account.is_business_profile && dnsConfig && (
+              {/* DNS Configuration - Show for all profiles */}
+              {profileConfig && (
                 <div className="mt-4 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-blue-300 font-semibold">DNS Configuration</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowDnsInstructions(!showDnsInstructions)}
-                      className="text-blue-300 hover:text-blue-200"
-                    >
-                      {showDnsInstructions ? 'Hide' : 'Show'} Setup Instructions
-                    </Button>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleSyncProfileConfig}
+                        disabled={syncing}
+                        className="text-blue-300 hover:text-blue-200"
+                      >
+                        {syncing ? (
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-300 mr-1"></div>
+                        ) : null}
+                        {syncing ? 'Syncing...' : 'Sync'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowDnsInstructions(!showDnsInstructions)}
+                        className="text-blue-300 hover:text-blue-200"
+                      >
+                        {showDnsInstructions ? 'Hide' : 'Show'} Setup Instructions
+                      </Button>
+                    </div>
                   </div>
                   
                   <div className="space-y-2 text-sm">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* ID Field */}
+                    <div className="bg-gray-800 p-3 rounded border mb-3">
+                      <p className="text-gray-300 font-medium mb-1">ID</p>
+                      <code className="text-green-400 text-xs bg-gray-900 px-2 py-1 rounded">
+                        {profileConfig.endpoint_id}
+                      </code>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                       <div className="bg-gray-800 p-3 rounded border">
                         <p className="text-gray-300 font-medium mb-1">Primary DNS</p>
                         <code className="text-green-400 text-xs bg-gray-900 px-2 py-1 rounded">
-                          {dnsConfig.primary}
+                          {profileConfig.dns_server_primary}
                         </code>
                       </div>
                       <div className="bg-gray-800 p-3 rounded border">
                         <p className="text-gray-300 font-medium mb-1">Secondary DNS</p>
                         <code className="text-green-400 text-xs bg-gray-900 px-2 py-1 rounded">
-                          {dnsConfig.secondary}
+                          {profileConfig.dns_server_secondary}
                         </code>
                       </div>
                     </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="bg-gray-800 p-3 rounded border">
+                        <p className="text-gray-300 font-medium mb-1">DNS-over-TLS/QUIC</p>
+                        <code className="text-green-400 text-xs bg-gray-900 px-2 py-1 rounded">
+                          {profileConfig.dns_over_tls}
+                        </code>
+                      </div>
+                      <div className="bg-gray-800 p-3 rounded border">
+                        <p className="text-gray-300 font-medium mb-1">DNS-over-HTTPS</p>
+                        <code className="text-green-400 text-xs bg-gray-900 px-2 py-1 rounded">
+                          {profileConfig.dns_over_https}
+                        </code>
+                      </div>
+                    </div>
+
+                    {profileConfig.ipv6_address_1 && profileConfig.ipv6_address_2 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                        <div className="bg-gray-800 p-3 rounded border">
+                          <p className="text-gray-300 font-medium mb-1">IPv6 Primary</p>
+                          <code className="text-green-400 text-xs bg-gray-900 px-2 py-1 rounded">
+                            {profileConfig.ipv6_address_1}
+                          </code>
+                        </div>
+                        <div className="bg-gray-800 p-3 rounded border">
+                          <p className="text-gray-300 font-medium mb-1">IPv6 Secondary</p>
+                          <code className="text-green-400 text-xs bg-gray-900 px-2 py-1 rounded">
+                            {profileConfig.ipv6_address_2}
+                          </code>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="text-xs text-gray-400 mt-2">
+                      Last synced: {new Date(profileConfig.last_synced).toLocaleString()}
+                    </div>
                   </div>
 
-                  {showDnsInstructions && dnsConfig.setupInstructions && (
+                  {showDnsInstructions && (
                     <div className="mt-4 pt-4 border-t border-blue-500/30">
                       <h5 className="text-blue-300 font-medium mb-3">Device Setup Instructions:</h5>
                       <div className="space-y-3 text-xs">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                           <div className="bg-gray-800 p-3 rounded">
                             <strong className="text-white">📱 iOS/iPhone:</strong>
-                            <p className="text-gray-300 mt-1">{dnsConfig.setupInstructions.ios}</p>
+                            <p className="text-gray-300 mt-1">Settings → General → VPN & Device Management → DNS → Configure DNS → Manual. Enter DNS servers above.</p>
                           </div>
                           <div className="bg-gray-800 p-3 rounded">
                             <strong className="text-white">🤖 Android:</strong>
-                            <p className="text-gray-300 mt-1">{dnsConfig.setupInstructions.android}</p>
+                            <p className="text-gray-300 mt-1">Settings → Network & Internet → Advanced → Private DNS → Private DNS provider hostname. Use: {profileConfig.dns_over_tls}</p>
                           </div>
                           <div className="bg-gray-800 p-3 rounded">
                             <strong className="text-white">🪟 Windows:</strong>
-                            <p className="text-gray-300 mt-1">{dnsConfig.setupInstructions.windows}</p>
+                            <p className="text-gray-300 mt-1">Settings → Network & Internet → Change adapter options → Properties → TCP/IPv4 → Properties. Use custom DNS servers.</p>
                           </div>
                           <div className="bg-gray-800 p-3 rounded">
                             <strong className="text-white">🍎 macOS:</strong>
-                            <p className="text-gray-300 mt-1">{dnsConfig.setupInstructions.macos}</p>
+                            <p className="text-gray-300 mt-1">System Preferences → Network → Advanced → DNS. Add the DNS servers to the list.</p>
                           </div>
                         </div>
                       </div>
