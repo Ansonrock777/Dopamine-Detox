@@ -27,18 +27,18 @@ Centralized backend management where the system creates and controls NextDNS pro
 ### Phase 1: NextDNS Business Plan Setup & API Integration
 
 #### 1.0 Capability Validation (Blocking)
-- [ ] Validate NextDNS Business/Admin API for profile creation/cloning, policy management, analytics, and device labeling
-- [ ] Document API rate limits, pagination, and error semantics
-- [ ] Decide per-user profile vs. shared-profile-with-device-labels strategy
+- [x] Validate NextDNS Business/Admin API for profile creation/cloning, policy management, analytics, and device labeling
+- [x] Document API rate limits, pagination, and error semantics
+- [x] Decide per-user profile vs. shared-profile-with-device-labels strategy
 
 #### 1.1 NextDNS Business Account Setup
-- [ ] **Subscribe to NextDNS Business Plan** ($2/month per profile)
+- [x] **Subscribe to NextDNS Business Plan** ($2/month per profile)
   - Provides centralized management
   - API access for profile creation
   - Advanced policy controls
   - Usage analytics and reporting
   
-- [ ] **Generate Master API Key**
+- [x] **Generate Master API Key**
   - Store securely in environment variables
   - Implement key rotation strategy
   - Set up monitoring for API usage
@@ -538,18 +538,18 @@ ENTERPRISE_TIER: {
 ## 📈 Implementation Timeline
 
 ### Week 1-2: Foundation
-- [ ] NextDNS Business plan setup
-- [ ] API integration development
-- [ ] Database schema updates
-- [ ] Basic profile creation system
- - [ ] Capability validation against Business/Admin API (create/clone, analytics)
+- [x] NextDNS Business plan setup
+- [x] API integration development
+- [x] Database schema updates
+- [x] Basic profile creation system
+ - [x] Capability validation against Business/Admin API (create/clone, analytics)
 
 ### Week 3-4: Core Features  
-- [ ] User onboarding flow
-- [ ] Policy management system
-- [ ] Device setup automation
-- [ ] Basic compliance checking
- - [ ] Idempotency + rate limiting
+- [x] User onboarding flow
+- [x] Policy management system
+- [x] Device setup automation
+- [x] Basic compliance checking
+ - [x] Idempotency + rate limiting
 
 ### Week 5-6: Security & Enforcement
 - [ ] Bypass prevention mechanisms
