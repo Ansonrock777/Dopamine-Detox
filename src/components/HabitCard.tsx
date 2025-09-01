@@ -29,7 +29,6 @@ interface HabitCardProps {
   onToggleCompletion: (habitId: string, date?: string) => Promise<boolean>;
   onEdit?: (habit: HabitWithStats) => void;
   onDelete?: (habitId: string) => void;
-  isCompleted?: boolean;
 }
 
 export function HabitCard({
@@ -37,7 +36,6 @@ export function HabitCard({
   onToggleCompletion,
   onEdit,
   onDelete,
-  isCompleted: _isCompleted = false,
 }: HabitCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [todayCompleted, setTodayCompleted] = useState(habit.today_completed);

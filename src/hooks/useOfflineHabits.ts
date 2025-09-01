@@ -27,30 +27,6 @@ export function useOfflineHabits(): UseOfflineHabitsReturn {
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
   const [hasPendingSync, setHasPendingSync] = useState(false)
 
-  // Initialize offline storage and network listeners
-  useEffect(() => {
-    const initializeStorage = async () => {
-      try {
-        await offlineStorage.init()
-        console.log('[useOfflineHabits] Offline storage initialized')
-      } catch (error) {
-        console.error('[useOfflineHabits] Failed to initialize offline storage:', error)
-      }
-    }
-
-    initializeStorage()
-
-    // Set up network status listeners
-    const cleanup = offlineStorage.onNetworkChange((online) => {
-      setIsOffline(!online)
-      if (online) {
-        console.log('[useOfflineHabits] Back online, syncing...')
-        syncPendingOperations()
-      }
-    })
-
-    return cleanup
-  }, [])
 
   // Check for pending sync operations
   const checkPendingSync = useCallback(async () => {
@@ -357,6 +333,31 @@ export function useOfflineHabits(): UseOfflineHabitsReturn {
       console.error('[useOfflineHabits] Error during sync:', error)
     }
   }, [user?.id, isOffline, refreshHabits])
+
+  // Initialize offline storage and network listeners
+  useEffect(() => {
+    const initializeStorage = async () => {
+      try {
+        await offlineStorage.init()
+        console.log('[useOfflineHabits] Offline storage initialized')
+      } catch (error) {
+        console.error('[useOfflineHabits] Failed to initialize offline storage:', error)
+      }
+    }
+
+    initializeStorage()
+
+    // Set up network status listeners
+    const cleanup = offlineStorage.onNetworkChange((online) => {
+      setIsOffline(!online)
+      if (online) {
+        console.log('[useOfflineHabits] Back online, syncing...')
+        syncPendingOperations()
+      }
+    })
+
+    return cleanup
+  }, [syncPendingOperations])
 
   // Load habits on mount and when user changes
   useEffect(() => {

@@ -294,7 +294,6 @@ export default function HabitTrackerPage() {
               key={habit.id}
               habit={habit}
               onToggleCompletion={handleToggleCompletion}
-              isCompleted={habit.today_completed}
               onEdit={handleEditHabit}
               onDelete={handleDeleteHabit}
             />

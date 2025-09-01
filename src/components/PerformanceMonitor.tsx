@@ -101,23 +101,8 @@ export function PerformanceMonitor() {
         }, 1000)
       }
     }
-
-    // Monitor Service Worker status
-    monitorServiceWorker()
-    
-    // Monitor PWA installation
-    monitorPWAInstallation()
-
-    // Send metrics periodically
-    setInterval(() => {
-      sendMetrics()
-    }, 30000) // Every 30 seconds
-
-    // Send metrics before page unload
-    window.addEventListener('beforeunload', () => {
-      sendMetrics(true)
-    })
   }, [])
+
 
   useEffect(() => {
     // Initialize performance monitoring
@@ -264,6 +249,24 @@ export function PerformanceMonitor() {
       console.warn('[Performance] Failed to send analytics:', error)
     }
   }
+
+  useEffect(() => {
+    // Monitor Service Worker status
+    monitorServiceWorker()
+    
+    // Monitor PWA installation
+    monitorPWAInstallation()
+
+    // Send metrics periodically
+    setInterval(() => {
+      sendMetrics()
+    }, 30000) // Every 30 seconds
+
+    // Send metrics before page unload
+    window.addEventListener('beforeunload', () => {
+      sendMetrics(true)
+    })
+  }, [monitorServiceWorker, sendMetrics])
 
   // This component doesn't render anything visible
   return null

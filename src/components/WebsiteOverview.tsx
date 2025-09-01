@@ -35,7 +35,6 @@ interface WebsiteOverviewProps {
   onToggleRule: (id: string, isActive: boolean) => void;
   onRemoveBlocked: (id: string) => void;
   onRemoveRule: (id: string) => void;
-  onUpdateRule?: (id: string, updates: Partial<WebsiteRule>) => void;
 }
 
 export function WebsiteOverview({
@@ -44,8 +43,7 @@ export function WebsiteOverview({
   onToggleBlocked,
   onToggleRule,
   onRemoveBlocked,
-  onRemoveRule,
-  onUpdateRule: _onUpdateRule
+  onRemoveRule
 }: WebsiteOverviewProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "blocked" | "rule">("all");
