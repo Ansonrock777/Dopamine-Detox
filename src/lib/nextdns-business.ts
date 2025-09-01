@@ -63,6 +63,11 @@ export class NextDNSBusinessManager {
     profileName?: string
   ): Promise<BusinessProfile> {
     try {
+      // Input validation
+      if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+        throw new Error('Invalid userId: userId must be a non-empty string')
+      }
+      
       console.log(`🔄 Creating NextDNS business profile for user: ${userId}`)
 
       // Check if user already has a business profile
@@ -95,24 +100,42 @@ export class NextDNSBusinessManager {
       }
 
       // Generate unique profile name with timestamp and user ID to ensure no duplicates
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19) // Format: 2024-01-01T12-00-00
-      const userIdShort = userId.substring(0, 8) // First 8 characters of user ID
+      // Keep name reasonably short for NextDNS limits (typically 50-100 chars)
+      const timestamp = new Date().toISOString().slice(0, 10) // Just the date: 2024-01-01
+      const userIdShort = userId.length >= 8 ? userId.substring(0, 8) : userId.padEnd(8, '0') // Ensure 8 characters
       const randomSuffix = Math.random().toString(36).substring(2, 6) // 4-character random string
-      const finalProfileName = profileName || `${userFullName} - ${timestamp}-${userIdShort}-${randomSuffix}`
+      
+      // Sanitize and truncate user name if too long to keep total length reasonable
+      const maxUserNameLength = 20
+      const sanitizedUserName = (userFullName || 'User')
+        .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special chars except spaces and hyphens
+        .trim()
+      const truncatedUserName = sanitizedUserName.length > maxUserNameLength 
+        ? sanitizedUserName.substring(0, maxUserNameLength).trim() 
+        : sanitizedUserName
+      
+      // Ensure we have a valid name
+      const safeTruncatedUserName = truncatedUserName || 'User'
+      
+      const baseProfileName = profileName || `${safeTruncatedUserName}-${timestamp}-${userIdShort}-${randomSuffix}`
       
       // Create NextDNS profile using business API
-      console.log(`🔄 Creating NextDNS profile with name: ${finalProfileName}`)
+      console.log(`🔄 Creating NextDNS profile with base name: ${baseProfileName}`)
       console.log(`🔍 Using API key: ${this.masterApiKey ? this.masterApiKey.substring(0, 8) + '...' : 'NOT SET'}`)
       
       let nextdnsProfile
       let profileCreationAttempts = 0
       const maxAttempts = 3
+      let finalProfileName = baseProfileName // Track the final successful profile name
       
       while (profileCreationAttempts < maxAttempts) {
         try {
+          // Generate unique name for each attempt
           const attemptedProfileName = profileCreationAttempts === 0 
-            ? finalProfileName 
-            : `${finalProfileName}-retry${profileCreationAttempts}-${Math.random().toString(36).substring(2, 8)}`
+            ? baseProfileName 
+            : `${baseProfileName}-r${profileCreationAttempts}${Math.random().toString(36).substring(2, 4)}`
+          
+          finalProfileName = attemptedProfileName // Update the final name for this attempt
             
           console.log(`🔄 Making NextDNS API call (attempt ${profileCreationAttempts + 1}/${maxAttempts}) with name: ${attemptedProfileName}`)
           console.log(`🔄 Using API key: ${this.masterApiKey.substring(0, 8)}...`)

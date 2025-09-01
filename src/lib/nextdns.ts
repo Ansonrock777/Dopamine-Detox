@@ -158,8 +158,40 @@ export class NextDNSClient {
     try {
       const parsed = JSON.parse(responseText);
       console.log('✅ NextDNS API parsed response:', parsed);
+      
+      // Check for errors in successful responses (NextDNS sometimes returns 200 with error details)
+      if (parsed && typeof parsed === 'object') {
+        if ('error' in parsed && parsed.error) {
+          let errorMessage = 'NextDNS API returned error'
+          if (Array.isArray(parsed.error)) {
+            const duplicateError = parsed.error.find((e: unknown) => 
+              e && typeof e === 'object' && 'code' in e && e.code === 'duplicate'
+            )
+            if (duplicateError) {
+              errorMessage = 'Profile name already exists'
+            } else {
+              errorMessage = parsed.error.map((e: unknown) => {
+                if (e && typeof e === 'object') {
+                  if ('message' in e && typeof e.message === 'string') return e.message
+                  if ('code' in e && typeof e.code === 'string') return e.code
+                }
+                return String(e)
+              }).join(', ')
+            }
+          } else if (typeof parsed.error === 'string') {
+            errorMessage = parsed.error
+          }
+          throw new Error(`NextDNS API Error on ${endpoint}: ${errorMessage}`)
+        }
+      }
+      
       return parsed;
     } catch (parseError) {
+      // Re-throw NextDNS API errors
+      if (parseError instanceof Error && parseError.message.includes('NextDNS API Error')) {
+        throw parseError;
+      }
+      
       console.error('❌ Failed to parse NextDNS response as JSON:', parseError);
       console.error('Response text was:', responseText);
       throw new Error(`Invalid JSON response from NextDNS API: ${responseText}`);
