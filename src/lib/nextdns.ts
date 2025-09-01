@@ -206,6 +206,14 @@ export class NextDNSClient {
     }
     
     if (!profile.id) {
+      // Check if this is a duplicate error
+      if (profile && typeof profile === 'object' && 'error' in profile) {
+        const errorObj = profile as unknown as { error: Array<{ code: string }> }
+        if (errorObj.error && Array.isArray(errorObj.error) && 
+            errorObj.error.some(e => e.code === 'duplicate')) {
+          throw new Error(`NextDNS profile name already exists: ${name}. Please try again or contact support.`)
+        }
+      }
       throw new Error(`NextDNS API returned profile without ID: ${JSON.stringify(profile)}`)
     }
     

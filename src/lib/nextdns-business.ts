@@ -94,60 +94,88 @@ export class NextDNSBusinessManager {
         console.warn(`⚠️ Could not fetch user profile, using fallback name:`, profileError)
       }
 
-      // Generate unique profile name with timestamp to ensure no duplicates
+      // Generate unique profile name with timestamp and user ID to ensure no duplicates
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19) // Format: 2024-01-01T12-00-00
-      const finalProfileName = profileName || `${userFullName} - ${timestamp}`
+      const userIdShort = userId.substring(0, 8) // First 8 characters of user ID
+      const randomSuffix = Math.random().toString(36).substring(2, 6) // 4-character random string
+      const finalProfileName = profileName || `${userFullName} - ${timestamp}-${userIdShort}-${randomSuffix}`
       
       // Create NextDNS profile using business API
       console.log(`🔄 Creating NextDNS profile with name: ${finalProfileName}`)
       console.log(`🔍 Using API key: ${this.masterApiKey ? this.masterApiKey.substring(0, 8) + '...' : 'NOT SET'}`)
       
       let nextdnsProfile
-      try {
-        console.log(`🔄 Making NextDNS API call with client using key: ${this.masterApiKey.substring(0, 8)}...`)
-        nextdnsProfile = await this.client.createProfile(finalProfileName)
-        console.log(`🔍 NextDNS profile response:`, JSON.stringify(nextdnsProfile, null, 2))
-        console.log(`🔍 NextDNS profile ID extracted:`, nextdnsProfile?.id)
-      } catch (apiError) {
-        console.error('❌ NextDNS API call failed:', apiError)
-        console.error('❌ API Error details:', {
-          message: apiError instanceof Error ? apiError.message : 'Unknown error',
-          stack: apiError instanceof Error ? apiError.stack : 'No stack trace',
-          apiKey: this.masterApiKey ? `${this.masterApiKey.substring(0, 8)}...` : 'NOT SET',
-          environment: process.env.NODE_ENV
-        })
-        
-        // Always create a mock profile for development to allow testing UI
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('🚧 Development mode: Creating mock NextDNS profile for testing')
-          nextdnsProfile = {
-            id: `dev-profile-${Date.now()}`,
-            name: finalProfileName,
-            parentalControl: {
-              safeSearch: false,
-              youtubeRestrictedMode: false,
-              blockBypass: false,
-              services: [],
-              categories: []
-            },
-            denylist: [],
-            allowlist: []
+      let profileCreationAttempts = 0
+      const maxAttempts = 3
+      
+      while (profileCreationAttempts < maxAttempts) {
+        try {
+          const attemptedProfileName = profileCreationAttempts === 0 
+            ? finalProfileName 
+            : `${finalProfileName}-retry${profileCreationAttempts}-${Math.random().toString(36).substring(2, 8)}`
+            
+          console.log(`🔄 Making NextDNS API call (attempt ${profileCreationAttempts + 1}/${maxAttempts}) with name: ${attemptedProfileName}`)
+          console.log(`🔄 Using API key: ${this.masterApiKey.substring(0, 8)}...`)
+          
+          nextdnsProfile = await this.client.createProfile(attemptedProfileName)
+          console.log(`🔍 NextDNS profile response:`, JSON.stringify(nextdnsProfile, null, 2))
+          console.log(`🔍 NextDNS profile ID extracted:`, nextdnsProfile?.id)
+          break // Success, exit retry loop
+        } catch (apiError) {
+          profileCreationAttempts++
+          
+          // Check if this is a duplicate error and we can retry
+          if (apiError instanceof Error && 
+              apiError.message.includes('already exists') && 
+              profileCreationAttempts < maxAttempts) {
+            console.warn(`⚠️ Profile name conflict (attempt ${profileCreationAttempts}), retrying with different name...`)
+            continue // Try again with different name
           }
-        } else {
-          // In production, provide more detailed error information
-          let errorMessage = 'NextDNS API failed'
-          if (apiError instanceof Error) {
-            if (apiError.message.includes('401') || apiError.message.includes('403')) {
-              errorMessage = 'NextDNS API authentication failed. Please check your NEXTDNS_BUSINESS_API_KEY'
-            } else if (apiError.message.includes('404')) {
-              errorMessage = 'NextDNS API endpoint not found. The API may have changed'
-            } else if (apiError.message.includes('500')) {
-              errorMessage = 'NextDNS server error. Please try again later'
-            } else {
-              errorMessage = `NextDNS API error: ${apiError.message}`
+          
+          // If it's not a duplicate error or we've exhausted retries, handle the error
+          console.error('❌ NextDNS API call failed:', apiError)
+          console.error('❌ API Error details:', {
+            message: apiError instanceof Error ? apiError.message : 'Unknown error',
+            stack: apiError instanceof Error ? apiError.stack : 'No stack trace',
+            apiKey: this.masterApiKey ? `${this.masterApiKey.substring(0, 8)}...` : 'NOT SET',
+            environment: process.env.NODE_ENV
+          })
+          
+          // Always create a mock profile for development to allow testing UI
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('🚧 Development mode: Creating mock NextDNS profile for testing')
+            nextdnsProfile = {
+              id: `dev-profile-${Date.now()}`,
+              name: finalProfileName,
+              parentalControl: {
+                safeSearch: false,
+                youtubeRestrictedMode: false,
+                blockBypass: false,
+                services: [],
+                categories: []
+              },
+              denylist: [],
+              allowlist: []
             }
+            break // Exit retry loop with mock profile
+          } else {
+            // In production, provide more detailed error information
+            let errorMessage = 'NextDNS API failed'
+            if (apiError instanceof Error) {
+              if (apiError.message.includes('401') || apiError.message.includes('403')) {
+                errorMessage = 'NextDNS API authentication failed. Please check your NEXTDNS_BUSINESS_API_KEY'
+              } else if (apiError.message.includes('404')) {
+                errorMessage = 'NextDNS API endpoint not found. The API may have changed'
+              } else if (apiError.message.includes('500')) {
+                errorMessage = 'NextDNS server error. Please try again later'
+              } else if (apiError.message.includes('already exists')) {
+                errorMessage = `NextDNS profile name conflicts persisted after ${maxAttempts} attempts. Please try again later.`
+              } else {
+                errorMessage = `NextDNS API error: ${apiError.message}`
+              }
+            }
+            throw new Error(errorMessage)
           }
-          throw new Error(errorMessage)
         }
       }
       
