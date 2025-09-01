@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +41,7 @@ export function EnhancedOnboarding({
   const [currentStep, setCurrentStep] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(true);
 
-  const steps: OnboardingStep[] = [
+  const steps: OnboardingStep[] = useMemo(() => [
     {
       id: 'nextdns-setup',
       title: 'Connect NextDNS Account',
@@ -66,7 +66,7 @@ export function EnhancedOnboarding({
       completed: hasBlockedWebsites,
       action: () => onScrollToSection?.('website-blocking')
     }
-  ];
+  ], [nextDnsConnected, hasBlockedWebsites, onScrollToSection]);
 
   const completedSteps = steps.filter(step => step.completed).length;
   const progress = (completedSteps / steps.length) * 100;

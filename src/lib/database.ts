@@ -972,7 +972,7 @@ export async function getHabitsWithStats(userId: string): Promise<HabitWithStats
     // If no habits found, let's check ALL habits for debugging
     if (!adminHabits || adminHabits.length === 0) {
       console.log('DB: No habits found for user, checking ALL habits in database...')
-      const { data: allHabits, error: allError } = await supabaseAdmin
+      const { data: allHabits } = await supabaseAdmin
         .from('habits')
         .select('user_id, name, is_active')
         .limit(10)

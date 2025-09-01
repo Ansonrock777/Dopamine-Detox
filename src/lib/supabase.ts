@@ -24,7 +24,7 @@ export const supabaseAdmin = supabaseServiceRoleKey
 // Test connection function
 export const testSupabaseConnection = async () => {
   try {
-    const { data: _data, error } = await supabase.from('blocked_websites').select('count').limit(1)
+    const { error } = await supabase.from('blocked_websites').select('count').limit(1)
     if (error) {
       console.error('Supabase connection test failed:', error)
       return false

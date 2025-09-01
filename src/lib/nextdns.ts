@@ -5,7 +5,8 @@
  * profiles, blocked domains, and category filtering.
  */
 
-interface _NextDNSConfig {
+// Configuration interface for NextDNS API
+export interface NextDNSConfig {
   apiKey: string;
   profileId: string;
 }
@@ -96,7 +97,6 @@ export class NextDNSClient {
       
       // Handle 524 timeout errors specifically
       if (response.status === 524) {
-        const errorText = await response.text();
         console.error('❌ NextDNS API Timeout (524):', {
           status: response.status,
           endpoint,
@@ -109,7 +109,7 @@ export class NextDNSClient {
     } catch (error) {
       clearTimeout(timeoutId);
       
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         console.error('❌ NextDNS API Request Timeout:', { endpoint, timeout: '30s' });
         throw new Error(`NextDNS API Request Timeout on ${endpoint}: Request took longer than 30 seconds`);
       }
@@ -790,7 +790,7 @@ export class NextDNSClient {
         // Extract endpoint from profile if available
         endpointId = profile.id || profileId;
         console.log('🔍 Retrieved endpoint from API:', endpointId);
-      } catch (error) {
+      } catch {
         console.warn('🔍 Could not get profile from API, using profileId as-is:', profileId);
         endpointId = profileId;
       }

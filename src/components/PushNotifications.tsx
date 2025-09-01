@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -20,7 +20,7 @@ interface NotificationSettings {
 export function PushNotifications() {
   const { user } = useAuth()
   const [permission, setPermission] = useState<NotificationPermission>('default')
-  const [_subscription, setSubscription] = useState<PushSubscription | null>(null)
+  const [, setSubscription] = useState<PushSubscription | null>(null)
   const [settings, setSettings] = useState<NotificationSettings>({
     enabled: false,
     habitReminders: true,
@@ -30,10 +30,24 @@ export function PushNotifications() {
   })
   const [isLoading, setIsLoading] = useState(false)
 
+  const loadSettings = useCallback(async () => {
+    if (!user?.id) return
+    
+    try {
+      const response = await fetch('/api/notification-settings')
+      if (response.ok) {
+        const data = await response.json()
+        setSettings(data)
+      }
+    } catch (error) {
+      console.error('[PushNotifications] Error loading settings:', error)
+    }
+  }, [user?.id])
+
   useEffect(() => {
     checkNotificationStatus()
     loadSettings()
-  }, [user?.id])
+  }, [user?.id, loadSettings])
 
   const checkNotificationStatus = async () => {
     if ('Notification' in window) {
@@ -51,20 +65,6 @@ export function PushNotifications() {
     }
   }
 
-  const loadSettings = async () => {
-    if (!user?.id) return
-
-    try {
-      // Load from localStorage for now (could be moved to API)
-      const saved = localStorage.getItem(`notification-settings-${user.id}`)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        setSettings(prev => ({ ...prev, ...parsed }))
-      }
-    } catch (error) {
-      console.error('[PushNotifications] Error loading settings:', error)
-    }
-  }
 
   const saveSettings = async (newSettings: NotificationSettings) => {
     if (!user?.id) return
@@ -126,7 +126,7 @@ export function PushNotifications() {
         if (!vapidPublicKey) {
           console.warn('[PushNotifications] VAPID public key not configured')
           // For demo purposes, we'll use local notifications
-          subscription = await createLocalSubscription(registration)
+          subscription = await createLocalSubscription()
         } else {
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
@@ -147,7 +147,7 @@ export function PushNotifications() {
   }
 
   // Fallback to local notifications for demo
-  const createLocalSubscription = async (_registration: ServiceWorkerRegistration) => {
+  const createLocalSubscription = async () => {
     // This is a mock subscription for local notifications
     return {
       endpoint: 'local-notification',

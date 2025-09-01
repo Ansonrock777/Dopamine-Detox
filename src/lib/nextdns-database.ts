@@ -820,21 +820,61 @@ export async function syncProfileConfig(userId: string): Promise<NextDNSProfileC
     if (isBusinessAccount) {
       // For business accounts, we don't have API access, so generate
       const client = new NextDNSClient('dummy-key')
-      profileConfig = client.generateProfileConfig(profileId)
+      const baseConfig = client.generateProfileConfig(profileId)
+      profileConfig = {
+        id: profileId,
+        user_id: userId,
+        profile_name: `Business Profile ${profileId}`,
+        is_business_account: true,
+        last_synced: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        ...baseConfig
+      }
     } else {
       // For manual accounts, try to get real data from NextDNS API
       const account = await getNextDNSAccount(userId)
       if (account?.api_key) {
         const client = new NextDNSClient(account.api_key)
         try {
-          profileConfig = await client.getProfileConfig(profileId)
+          const baseConfig = await client.getProfileConfig(profileId)
+          profileConfig = {
+            id: profileId,
+            user_id: userId,
+            profile_name: `Manual Profile ${profileId}`,
+            is_business_account: false,
+            last_synced: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            ...baseConfig
+          }
         } catch (error) {
           console.log('Failed to get real config, falling back to generated:', error)
-          profileConfig = client.generateProfileConfig(profileId)
+          const baseConfig = client.generateProfileConfig(profileId)
+          profileConfig = {
+            id: profileId,
+            user_id: userId,
+            profile_name: `Generated Profile ${profileId}`,
+            is_business_account: false,
+            last_synced: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            ...baseConfig
+          }
         }
       } else {
         const client = new NextDNSClient('dummy-key')
-        profileConfig = client.generateProfileConfig(profileId)
+        const baseConfig = client.generateProfileConfig(profileId)
+        profileConfig = {
+          id: profileId,
+          user_id: userId,
+          profile_name: `Fallback Profile ${profileId}`,
+          is_business_account: false,
+          last_synced: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          ...baseConfig
+        }
       }
     }
     

@@ -1,4 +1,9 @@
-import type { HabitStats } from '@/types'
+// Types
+export interface HabitStats {
+  current_streak: number;
+  longest_streak: number;
+  total_completions: number;
+}
 
 export type BadgeLevel = 'none' | 'getting_started' | 'spark' | 'steady' | 'on_fire' | 'unstoppable'
 

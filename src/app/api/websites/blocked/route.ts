@@ -132,8 +132,9 @@ export async function DELETE(request: NextRequest) {
     // Get website info before deletion for NextDNS sync
     let websiteUrl = null
     try {
-      const { getBlockedWebsite } = await import('@/lib/database')
-      const website = await getBlockedWebsite(id, userId)
+      const { getBlockedWebsites } = await import('@/lib/database')
+      const websites = await getBlockedWebsites(userId)
+      const website = websites.find(w => w.id === id)
       websiteUrl = website?.url
     } catch (getError) {
       console.warn('Could not get website for removal sync:', getError)

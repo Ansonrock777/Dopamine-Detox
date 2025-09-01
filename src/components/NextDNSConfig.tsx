@@ -47,7 +47,7 @@ export function NextDNSConfig() {
   const [syncing, setSyncing] = useState(false);
   
   // DNS configuration from business profile
-  const [dnsConfig, setDnsConfig] = useState<{
+  const [, setDnsConfig] = useState<{
     primary: string;
     secondary: string;
     ipv6Primary?: string;

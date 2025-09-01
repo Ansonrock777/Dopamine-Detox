@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { HabitCard } from "@/components/HabitCard";
 import { HabitStats } from "@/components/HabitStats";
@@ -20,18 +20,7 @@ export default function HabitTrackerPage() {
   const [editingHabit, setEditingHabit] = useState<HabitWithStats | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
-  useEffect(() => {
-    console.log("Auth state:", { authLoading, isSignedIn });
-    if (!authLoading && isSignedIn) {
-      console.log("User is signed in, loading habits...");
-      loadHabits();
-    } else if (!authLoading && !isSignedIn) {
-      console.log("User is not signed in");
-      setError("Please sign in to view your habits.");
-    }
-  }, [authLoading, isSignedIn]);
-
-  const loadHabits = async () => {
+  const loadHabits = useCallback(async () => {
     try {
       setLoading(true);
       setError(null); // Clear any previous errors
@@ -48,33 +37,32 @@ export default function HabitTrackerPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({
-          error: `HTTP ${response.status}: ${response.statusText}`,
-        }));
-        console.error("CLIENT: API Error:", response.status, errorData);
-        throw new Error(
-          errorData.error || `Failed to load habits: ${response.status}`
-        );
+        console.error("CLIENT: Response not ok:", response.status);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log("CLIENT: Data received:", data);
-      console.log("CLIENT: Habits count:", data.habits?.length || 0);
+      console.log("CLIENT: Habits data:", data);
 
-      setHabits(sortHabits(data.habits || []));
-      console.log("CLIENT: Habits set successfully");
+      setHabits(data || []);
     } catch (error) {
       console.error("CLIENT: Error loading habits:", error);
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load habits. Please try again."
-      );
+      setError(error instanceof Error ? error.message : "Failed to load habits");
     } finally {
       setLoading(false);
-      console.log("CLIENT: loadHabits completed");
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    console.log("Auth state:", { authLoading, isSignedIn });
+    if (!authLoading && isSignedIn) {
+      console.log("User is signed in, loading habits...");
+      loadHabits();
+    } else if (!authLoading && !isSignedIn) {
+      console.log("User is not signed in");
+      setError("Please sign in to view your habits.");
+    }
+  }, [authLoading, isSignedIn, loadHabits]);
 
   const handleToggleCompletion = async (
     habitId: string,

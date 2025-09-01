@@ -159,7 +159,7 @@ export class OfflineStorage {
     })
   }
 
-  async saveHabitEntries(entries: HabitEntry[], userId: string): Promise<void> {
+  async saveHabitEntries(entries: HabitEntry[]): Promise<void> {
     await this.init()
     if (!this.db) throw new Error('Database not initialized')
 

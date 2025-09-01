@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 
 interface PerformanceMetrics {
   // Core Web Vitals
@@ -28,29 +28,7 @@ export function PerformanceMonitor() {
   const sessionStartTime = useRef<number>(Date.now())
   const interactionCount = useRef<number>(0)
 
-  useEffect(() => {
-    // Initialize performance monitoring
-    initializePerformanceMonitoring()
-    
-    // Track user interactions
-    const trackInteraction = () => {
-      interactionCount.current += 1
-    }
-
-    // Add interaction listeners
-    document.addEventListener('click', trackInteraction)
-    document.addEventListener('keydown', trackInteraction)
-    document.addEventListener('scroll', trackInteraction)
-
-    // Cleanup
-    return () => {
-      document.removeEventListener('click', trackInteraction)
-      document.removeEventListener('keydown', trackInteraction)  
-      document.removeEventListener('scroll', trackInteraction)
-    }
-  }, [])
-
-  const initializePerformanceMonitoring = () => {
+  const initializePerformanceMonitoring = useCallback(() => {
     // Monitor Core Web Vitals
     if (typeof window !== 'undefined' && 'PerformanceObserver' in window) {
       // Largest Contentful Paint (LCP)
@@ -139,25 +117,31 @@ export function PerformanceMonitor() {
     window.addEventListener('beforeunload', () => {
       sendMetrics(true)
     })
-  }
+  }, [])
 
-  const monitorServiceWorker = () => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then(() => {
-        metricsRef.current.serviceWorkerStatus = 'ready'
-        console.log('[Performance] Service Worker ready')
-        
-        // Monitor cache performance
-        monitorCachePerformance()
-      }).catch(() => {
-        metricsRef.current.serviceWorkerStatus = 'failed'
-      })
-    } else {
-      metricsRef.current.serviceWorkerStatus = 'not-supported'
+  useEffect(() => {
+    // Initialize performance monitoring
+    initializePerformanceMonitoring()
+    
+    // Track user interactions
+    const trackInteraction = () => {
+      interactionCount.current += 1
     }
-  }
 
-  const monitorCachePerformance = async () => {
+    // Add interaction listeners
+    document.addEventListener('click', trackInteraction)
+    document.addEventListener('keydown', trackInteraction)
+    document.addEventListener('scroll', trackInteraction)
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('click', trackInteraction)
+      document.removeEventListener('keydown', trackInteraction)  
+      document.removeEventListener('scroll', trackInteraction)
+    }
+  }, [initializePerformanceMonitoring])
+
+  const monitorCachePerformance = useCallback(async () => {
     if ('caches' in window) {
       try {
         await caches.keys()
@@ -178,7 +162,23 @@ export function PerformanceMonitor() {
         console.warn('[Performance] Cache monitoring failed:', error)
       }
     }
-  }
+  }, [])
+
+  const monitorServiceWorker = useCallback(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(() => {
+        metricsRef.current.serviceWorkerStatus = 'ready'
+        console.log('[Performance] Service Worker ready')
+        
+        // Monitor cache performance
+        monitorCachePerformance()
+      }).catch(() => {
+        metricsRef.current.serviceWorkerStatus = 'failed'
+      })
+    } else {
+      metricsRef.current.serviceWorkerStatus = 'not-supported'
+    }
+  }, [monitorCachePerformance])
 
   const monitorPWAInstallation = () => {
     // Track install prompt
@@ -199,7 +199,7 @@ export function PerformanceMonitor() {
     }
   }
 
-  const sendMetrics = (isBeforeUnload = false) => {
+  const sendMetrics = useCallback((isBeforeUnload = false) => {
     const currentTime = Date.now()
     const sessionDuration = currentTime - sessionStartTime.current
 
@@ -234,7 +234,7 @@ export function PerformanceMonitor() {
     if (!isBeforeUnload && navigator.onLine) {
       sendToAnalytics(metrics)
     }
-  }
+  }, [])
 
   const sendToAnalytics = async (metrics: PerformanceMetrics) => {
     // Example of sending to analytics service

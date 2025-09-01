@@ -38,7 +38,16 @@ export async function POST(request: NextRequest) {
   // Create a new Svix instance with your secret.
   const wh = new Webhook(webhookSecret)
 
-  let evt: any
+  let evt: {
+    data: {
+      id: string
+      email_addresses?: Array<{ email_address: string }>
+      first_name?: string
+      last_name?: string
+      image_url?: string
+    }
+    type: string
+  }
 
   // Verify the payload with the headers
   try {
@@ -46,7 +55,16 @@ export async function POST(request: NextRequest) {
       'svix-id': svix_id,
       'svix-timestamp': svix_timestamp,
       'svix-signature': svix_signature,
-    })
+    }) as {
+      data: {
+        id: string
+        email_addresses?: Array<{ email_address: string }>
+        first_name?: string
+        last_name?: string
+        image_url?: string
+      }
+      type: string
+    }
   } catch (err) {
     console.error('Error verifying webhook:', err)
     return new Response('Error occured', {
@@ -69,7 +87,7 @@ export async function POST(request: NextRequest) {
         .from('profiles')
         .upsert({
           id: id,
-          email: email_addresses[0]?.email_address || '',
+          email: email_addresses?.[0]?.email_address || '',
           first_name: first_name || '',
           last_name: last_name || '',
           avatar_url: image_url || '',
