@@ -1,9 +1,37 @@
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ["@supabase/supabase-js"],
   webpack: (config, { isServer }) => {
-    // Fix for Windows readlink issues
+    // Comprehensive Windows symlink fixes
     config.resolve.symlinks = false;
+    
+    // Additional Windows-specific fixes
+    if (process.platform === 'win32') {
+      // Prevent Windows readlink errors
+      config.watchOptions = {
+        ...config.watchOptions,
+        ignored: ['**/node_modules/**', '**/.next/**'],
+        poll: 1000,
+        aggregateTimeout: 300,
+      };
+      
+      // Fix for OneDrive symlink issues
+      config.cache = {
+        ...config.cache,
+        type: 'filesystem',
+        cacheDirectory: resolve(__dirname, '.next/cache'),
+        buildDependencies: {
+          config: [__filename],
+        },
+      };
+    }
+    
     return config;
   },
 

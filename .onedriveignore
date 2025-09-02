@@ -1,0 +1,5 @@
+# OneDrive ignore file
+.next/
+node_modules/
+*.log
+.vercel/

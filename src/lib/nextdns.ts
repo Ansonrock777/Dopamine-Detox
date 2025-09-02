@@ -239,10 +239,10 @@ export class NextDNSClient {
     
     if (!profile.id) {
       // Check if this is a duplicate error
-      if (profile && typeof profile === 'object' && 'error' in profile) {
-        const errorObj = profile as unknown as { error: Array<{ code: string }> }
-        if (errorObj.error && Array.isArray(errorObj.error) && 
-            errorObj.error.some(e => e.code === 'duplicate')) {
+      if (profile && typeof profile === 'object' && 'errors' in profile) {
+        const errorObj = profile as unknown as { errors: Array<{ code: string }> }
+        if (errorObj.errors && Array.isArray(errorObj.errors) && 
+            errorObj.errors.some(e => e.code === 'duplicate')) {
           throw new Error(`NextDNS profile name already exists: ${name}. Please try again or contact support.`)
         }
       }

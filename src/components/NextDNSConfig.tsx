@@ -147,7 +147,7 @@ export function NextDNSConfig() {
   const handleConnectNextDNS = async () => {
     setConnecting(true);
     try {
-      console.log('🔄 Creating automatic NextDNS profile...');
+      console.log('🔄 Connecting to NextDNS (will detect existing profile or create new)...');
       
       const response = await fetch('/api/nextdns/account', {
         method: 'POST',
@@ -358,7 +358,7 @@ export function NextDNSConfig() {
                   ) : (
                     <Plus className="w-4 h-4 mr-2" />
                   )}
-                  {connecting ? 'Creating Profile...' : 'Get Started with NextDNS'}
+                  {connecting ? 'Connecting...' : 'Connect NextDNS'}
                 </Button>
               </div>
             </div>
