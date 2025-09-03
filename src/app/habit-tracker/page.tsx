@@ -86,7 +86,7 @@ export default function HabitTrackerPage() {
       // Update the habit in the local state and re-sort
       setHabits((prev) =>
         sortHabits(
-          prev.map((habit) =>
+          (Array.isArray(prev) ? prev : []).map((habit) =>
             habit.id === habitId
               ? {
                   ...habit,
@@ -129,7 +129,7 @@ export default function HabitTrackerPage() {
       today_completed: false,
     };
 
-    setHabits((prev) => sortHabits([habitWithStats, ...prev]));
+    setHabits((prev) => sortHabits([habitWithStats, ...(Array.isArray(prev) ? prev : [])]));
   };
 
   const handleDeleteHabit = async (habitId: string) => {
@@ -152,7 +152,7 @@ export default function HabitTrackerPage() {
       }
 
       // Remove the habit from local state
-      setHabits((prev) => prev.filter(habit => habit.id !== habitId));
+      setHabits((prev) => (Array.isArray(prev) ? prev : []).filter(habit => habit.id !== habitId));
       
       console.log('Habit deleted successfully');
     } catch (error) {
@@ -169,7 +169,7 @@ export default function HabitTrackerPage() {
   const handleHabitUpdated = (updatedHabit: HabitWithStats) => {
     setHabits(prev => 
       sortHabits(
-        prev.map(habit => 
+        (Array.isArray(prev) ? prev : []).map(habit => 
           habit.id === updatedHabit.id ? updatedHabit : habit
         )
       )
