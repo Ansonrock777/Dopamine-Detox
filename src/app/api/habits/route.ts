@@ -37,7 +37,7 @@ export async function GET() {
     const habits = await getHabitsWithStats(userId)
     console.log('API: Retrieved habits:', habits?.length || 0)
 
-    return NextResponse.json({ habits })
+    return NextResponse.json(habits)
   } catch (error) {
     console.error('API: Error getting habits:', error)
     return NextResponse.json(

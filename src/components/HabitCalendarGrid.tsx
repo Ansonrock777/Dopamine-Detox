@@ -175,6 +175,17 @@ export function HabitCalendarGrid({
 
   const monthLabels = generateMonthLabels();
 
+  // Format date for tooltip
+  const formatTooltipDate = (dateString: string) => {
+    const date = new Date(dateString + 'T12:00:00');
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric', 
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
   return (
     <div className={cn("w-full min-w-[480px]", className)}>
       {/* Month labels */}
@@ -208,7 +219,7 @@ export function HabitCalendarGrid({
                 <div
                   key={day.date || `empty-${weekIndex}-${dayIndex}`}
                   className={cn(
-                    "w-2 h-2 rounded-sm",
+                    "w-2 h-2 rounded-sm cursor-pointer",
                     day.isEmpty
                       ? "bg-transparent"
                       : loading
@@ -216,14 +227,14 @@ export function HabitCalendarGrid({
                       : day.isFuture
                       ? "bg-gray-800/30"
                       : day.completed
-                      ? "bg-green-500"
-                      : "bg-gray-600/30",
+                      ? "bg-green-500 hover:bg-green-400"
+                      : "bg-gray-600/30 hover:bg-gray-500/50",
                     day.isToday && !loading && "ring-1 ring-blue-400"
                   )}
                   title={
                     !loading && !day.isEmpty && day.date
-                      ? `${day.date}: ${
-                          day.completed ? "Completed" : "Not completed"
+                      ? `${formatTooltipDate(day.date)} - ${
+                          day.completed ? "Completed ✓" : "Not completed"
                         }`
                       : undefined
                   }

@@ -15,11 +15,18 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>
 }
 
-export function PWAInstallPrompt() {
+interface PWAInstallProps {
+  variant?: 'popup' | 'button'
+  size?: 'sm' | 'md' | 'lg'
+  className?: string
+}
+
+export function PWAInstallPrompt({ variant = 'popup', size = 'md', className = '' }: PWAInstallProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isVisible, setIsVisible] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
   const [installSource, setInstallSource] = useState<'browser' | 'manual'>('browser')
+  const [showManualModal, setShowManualModal] = useState(false)
 
   useEffect(() => {
     // Check if app is already installed
@@ -35,35 +42,34 @@ export function PWAInstallPrompt() {
     if (isIOS && !isInStandaloneMode) {
       setInstallSource('manual')
       
-      // Show manual install prompt for iOS after a delay
-      const timer = setTimeout(() => {
-        const dismissed = localStorage.getItem('pwa-install-dismissed')
-        if (!dismissed) {
-          setIsVisible(true)
-        }
-      }, 5000) // Show after 5 seconds
-
-      return () => clearTimeout(timer)
+      // Only show popup automatically for popup variant
+      if (variant === 'popup') {
+        const timer = setTimeout(() => {
+          const dismissed = localStorage.getItem('pwa-install-dismissed')
+          if (!dismissed) {
+            setIsVisible(true)
+          }
+        }, 5000)
+        return () => clearTimeout(timer)
+      }
     }
 
     // Listen for the beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
-      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault()
-      
-      // Save the event so it can be triggered later
       setDeferredPrompt(e)
       setInstallSource('browser')
       
-      // Show install prompt after a delay
-      const timer = setTimeout(() => {
-        const dismissed = localStorage.getItem('pwa-install-dismissed')
-        if (!dismissed) {
-          setIsVisible(true)
-        }
-      }, 3000) // Show after 3 seconds
-
-      return () => clearTimeout(timer)
+      // Only show popup automatically for popup variant
+      if (variant === 'popup') {
+        const timer = setTimeout(() => {
+          const dismissed = localStorage.getItem('pwa-install-dismissed')
+          if (!dismissed) {
+            setIsVisible(true)
+          }
+        }, 3000)
+        return () => clearTimeout(timer)
+      }
     }
 
     // Listen for app installed event
@@ -71,6 +77,7 @@ export function PWAInstallPrompt() {
       console.log('[PWA] App was installed')
       setIsInstalled(true)
       setIsVisible(false)
+      setShowManualModal(false)
       setDeferredPrompt(null)
     }
 
@@ -81,14 +88,11 @@ export function PWAInstallPrompt() {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt as unknown as (e: Event) => void)
       window.removeEventListener('appinstalled', handleAppInstalled)
     }
-  }, [])
+  }, [variant])
 
   const handleInstallClick = async () => {
     if (installSource === 'browser' && deferredPrompt) {
-      // Show the install prompt
       deferredPrompt.prompt()
-      
-      // Wait for the user to respond to the prompt
       const { outcome } = await deferredPrompt.userChoice
       console.log(`[PWA] User response to install prompt: ${outcome}`)
       
@@ -96,20 +100,97 @@ export function PWAInstallPrompt() {
         console.log('[PWA] User accepted the install prompt')
       }
 
-      // Clear the saved prompt since it can't be used again
       setDeferredPrompt(null)
       setIsVisible(false)
+    } else if (installSource === 'manual') {
+      setShowManualModal(true)
+    } else if (!deferredPrompt) {
+      // If no deferred prompt yet, show manual instructions or try basic install
+      setShowManualModal(true)
     }
   }
 
   const handleDismiss = () => {
     setIsVisible(false)
-    // Remember that user dismissed the prompt (expires in 7 days)
+    setShowManualModal(false)
     const dismissedUntil = Date.now() + (7 * 24 * 60 * 60 * 1000)
     localStorage.setItem('pwa-install-dismissed', dismissedUntil.toString())
   }
 
-  // Don't show if already installed
+  // Button variant - show immediately unless already installed
+  if (variant === 'button') {
+    if (isInstalled) {
+      return null
+    }
+
+    const buttonSizes = {
+      sm: 'h-8 px-3 text-xs',
+      md: 'h-10 px-4 text-sm',
+      lg: 'h-12 px-6 text-base'
+    }
+
+    const iconSizes = {
+      sm: 'w-3 h-3',
+      md: 'w-4 h-4',
+      lg: 'w-5 h-5'
+    }
+
+    return (
+      <>
+        <Button
+          onClick={handleInstallClick}
+          variant="outline"
+          className={`${buttonSizes[size]} ${className} border-blue-500/50 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 transition-all duration-200 flex items-center justify-center`}
+        >
+          <Download className={`${iconSizes[size]} ${className.includes('flex-col') ? 'mb-1' : 'mr-2'}`} />
+          {className.includes('flex-col') ? (
+            <span className="text-[9px] leading-none">Install</span>
+          ) : (
+            <span>{size === 'sm' ? 'Install' : 'Download App'}</span>
+          )}
+        </Button>
+
+        {/* Manual Install Modal for iOS */}
+        {showManualModal && installSource === 'manual' && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <Card className="bg-gray-900 border-gray-700 text-white max-w-sm w-full">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Install App</CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowManualModal(false)}
+                    className="h-8 w-8 p-0 text-gray-400 hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-300 mb-4">To install this app on your device:</p>
+                <div className="space-y-2 text-sm text-gray-400">
+                  <p>1. Tap the Share button (↗)</p>
+                  <p>2. Select "Add to Home Screen"</p>
+                  <p>3. Tap "Add" to install</p>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  onClick={() => setShowManualModal(false)}
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                >
+                  Got it!
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
+        )}
+      </>
+    )
+  }
+
+  // Popup variant - original behavior
   if (isInstalled || !isVisible) {
     return null
   }

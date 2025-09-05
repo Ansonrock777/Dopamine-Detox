@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { LogOut } from 'lucide-react'
 import { ResponsiveLayout } from '@/components/ResponsiveLayout'
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt'
 
 export default function DashboardLayout({
   children,
@@ -43,8 +44,24 @@ export default function DashboardLayout({
 
   const header = (
     <header className="border-b border-gray-800">
-      <div className="px-4 py-4 md:px-6 lg:px-8 flex items-center justify-end">
-        <div className="flex items-center space-x-2 md:space-x-4">
+      <div className="px-4 py-4 md:px-6 lg:px-8 flex items-center justify-between">
+        {/* Left side - App Title on Mobile */}
+        <div className="flex items-center md:hidden">
+          <h1 className="text-lg font-semibold text-white">Dopamine Detox</h1>
+        </div>
+        
+        {/* Right side - Actions */}
+        <div className="flex items-center space-x-2 md:space-x-4 ml-auto">
+          {/* Download Button - Desktop (large size) */}
+          <div className="hidden lg:block">
+            <PWAInstallPrompt variant="button" size="lg" />
+          </div>
+          
+          {/* Download Button - Tablet (medium size) */}
+          <div className="hidden md:block lg:hidden">
+            <PWAInstallPrompt variant="button" size="md" />
+          </div>
+          
           <span className="text-gray-400 text-sm md:text-base hidden sm:block truncate max-w-48">
             {user?.emailAddresses?.[0]?.emailAddress}
           </span>
