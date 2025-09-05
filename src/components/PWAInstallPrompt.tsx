@@ -171,8 +171,8 @@ export function PWAInstallPrompt({ variant = 'popup', size = 'md', className = '
                 <p className="text-gray-300 mb-4">To install this app on your device:</p>
                 <div className="space-y-2 text-sm text-gray-400">
                   <p>1. Tap the Share button (↗)</p>
-                  <p>2. Select "Add to Home Screen"</p>
-                  <p>3. Tap "Add" to install</p>
+                  <p>2. Select &quot;Add to Home Screen&quot;</p>
+                  <p>3. Tap &quot;Add&quot; to install</p>
                 </div>
               </CardContent>
               <CardFooter>

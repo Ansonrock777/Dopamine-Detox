@@ -385,7 +385,7 @@ export class NextDNSBusinessManager {
           })
           
           // Try to update/insert into profiles table with nextdns_config
-          const { data: profileData, error: profileError } = await supabaseAdmin
+          const { error: profileError } = await supabaseAdmin
             .from('profiles')
             .update({ 
               nextdns_config: simpleProfileData,
