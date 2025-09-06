@@ -14,3 +14,7 @@ Disallow: /*.json$
 
 # Allow specific public pages
 Allow: /
+Allow: /about
+Allow: /features
+Allow: /privacy
+Allow: /terms

@@ -16,10 +16,21 @@ export function LandingPageContent() {
   const { loading, isSignedIn } = useAuth();
   const router = useRouter();
 
-  // Redirect authenticated users to dashboard
+  // Redirect authenticated users to dashboard (only in browser, not for crawlers)
   useEffect(() => {
-    if (!loading && isSignedIn) {
-      router.push("/dashboard");
+    if (!loading && isSignedIn && typeof window !== 'undefined') {
+      // Check if this is likely a crawler by looking for user agent
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isCrawler = userAgent.includes('googlebot') || 
+                       userAgent.includes('bingbot') || 
+                       userAgent.includes('slurp') ||
+                       userAgent.includes('crawler') ||
+                       userAgent.includes('spider');
+      
+      // Only redirect if not a crawler
+      if (!isCrawler) {
+        router.push("/dashboard");
+      }
     }
   }, [isSignedIn, loading, router]);
 
