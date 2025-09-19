@@ -35,6 +35,12 @@ CREATE TABLE IF NOT EXISTS profiles (
     username VARCHAR(50),
     profile_name VARCHAR(100),
     has_business_profile BOOLEAN DEFAULT false,
+    subscription_status VARCHAR(20) DEFAULT 'free' CHECK (subscription_status IN ('free', 'paid', 'expired')),
+    payment_date TIMESTAMPTZ DEFAULT NULL,
+    polar_customer_id VARCHAR(255) DEFAULT NULL,
+    polar_order_id VARCHAR(255) DEFAULT NULL,
+    payment_amount DECIMAL(10,2) DEFAULT NULL,
+    payment_currency VARCHAR(3) DEFAULT 'USD',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -206,9 +212,43 @@ CREATE OR REPLACE FUNCTION user_has_business_profile(p_user_id TEXT)
 RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
-        SELECT 1 FROM nextdns_business_profiles 
+        SELECT 1 FROM nextdns_business_profiles
         WHERE user_id = p_user_id AND status = 'active'
     );
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to check if user has paid subscription
+CREATE OR REPLACE FUNCTION user_has_paid_subscription(p_user_id TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM profiles
+        WHERE id = p_user_id AND subscription_status = 'paid'
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to update user payment status
+CREATE OR REPLACE FUNCTION update_user_payment_status(
+    p_user_id TEXT,
+    p_polar_customer_id VARCHAR(255),
+    p_polar_order_id VARCHAR(255),
+    p_payment_amount DECIMAL(10,2),
+    p_payment_currency VARCHAR(3) DEFAULT 'USD'
+)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE profiles
+    SET
+        subscription_status = 'paid',
+        payment_date = NOW(),
+        polar_customer_id = p_polar_customer_id,
+        polar_order_id = p_polar_order_id,
+        payment_amount = p_payment_amount,
+        payment_currency = p_payment_currency,
+        updated_at = NOW()
+    WHERE id = p_user_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1108,6 +1148,12 @@ END $$;
 -- ==================================================
 
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles (email);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_subscription_status ON profiles (subscription_status);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_payment_date ON profiles (payment_date);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_polar_customer ON profiles (polar_customer_id);
 
 
 CREATE INDEX IF NOT EXISTS idx_blocked_websites_user_id ON blocked_websites (user_id);

@@ -1060,6 +1060,162 @@ export async function getHabitsWithStats(userId: string): Promise<HabitWithStats
   }
 }
 
+// =============================================
+// PAYMENT OPERATIONS
+// =============================================
+
+// Check if user has paid subscription
+export async function checkUserPaymentStatus(userId: string): Promise<{
+  hasPaid: boolean;
+  subscriptionStatus: 'free' | 'paid' | 'expired';
+  paymentDate?: string;
+}> {
+  try {
+    console.log('Checking payment status for user:', userId)
+
+    // Try admin client first
+    if (supabaseAdmin) {
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('profiles')
+          .select('subscription_status, payment_date')
+          .eq('id', userId)
+          .single()
+
+        if (!error && data) {
+          console.log('Payment status found via admin:', data)
+          return {
+            hasPaid: data.subscription_status === 'paid',
+            subscriptionStatus: data.subscription_status || 'free',
+            paymentDate: data.payment_date
+          }
+        } else {
+          console.error('Admin query error for payment status:', error)
+        }
+      } catch (adminError) {
+        console.error('Admin client error for payment status:', adminError)
+      }
+    }
+
+    // Fallback to RLS context
+    try {
+      await setUserContext(userId)
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('subscription_status, payment_date')
+        .eq('id', userId)
+        .single()
+
+      if (error) {
+        console.error('RLS query error for payment status:', error)
+        // Return free status if query fails
+        return { hasPaid: false, subscriptionStatus: 'free' }
+      }
+
+      console.log('Payment status found via RLS:', data)
+      return {
+        hasPaid: data.subscription_status === 'paid',
+        subscriptionStatus: data.subscription_status || 'free',
+        paymentDate: data.payment_date
+      }
+    } catch (error) {
+      console.error('RLS attempt failed for payment status:', error)
+      // Return free status as fallback
+      return { hasPaid: false, subscriptionStatus: 'free' }
+    }
+  } catch (error) {
+    console.error('Error in checkUserPaymentStatus:', error)
+    // Return free status as final fallback
+    return { hasPaid: false, subscriptionStatus: 'free' }
+  }
+}
+
+// Update user payment status (called by webhook)
+export async function updateUserPaymentStatus(
+  userId: string,
+  polarCustomerId: string,
+  polarOrderId: string,
+  paymentAmount: number,
+  paymentCurrency: string = 'USD'
+): Promise<void> {
+  try {
+    console.log('Updating payment status for user:', userId)
+
+    // Try using the database function first
+    const { error } = await supabase.rpc('update_user_payment_status', {
+      p_user_id: userId,
+      p_polar_customer_id: polarCustomerId,
+      p_polar_order_id: polarOrderId,
+      p_payment_amount: paymentAmount,
+      p_payment_currency: paymentCurrency
+    })
+
+    if (error) {
+      console.error('Database function failed, trying direct update:', error)
+
+      // Fallback to direct update with admin client
+      if (supabaseAdmin) {
+        try {
+          const { error: adminError } = await supabaseAdmin
+            .from('profiles')
+            .update({
+              subscription_status: 'paid',
+              payment_date: new Date().toISOString(),
+              polar_customer_id: polarCustomerId,
+              polar_order_id: polarOrderId,
+              payment_amount: paymentAmount,
+              payment_currency: paymentCurrency,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', userId)
+
+          if (adminError) {
+            console.error('Admin update error:', adminError)
+            throw adminError
+          }
+
+          console.log('Payment status updated via admin client')
+          return
+        } catch (adminError) {
+          console.error('Admin client error:', adminError)
+        }
+      }
+
+      // Final fallback to RLS
+      try {
+        await setUserContext(userId)
+        const { error: rlsError } = await supabase
+          .from('profiles')
+          .update({
+            subscription_status: 'paid',
+            payment_date: new Date().toISOString(),
+            polar_customer_id: polarCustomerId,
+            polar_order_id: polarOrderId,
+            payment_amount: paymentAmount,
+            payment_currency: paymentCurrency,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId)
+
+        if (rlsError) {
+          console.error('RLS update error:', rlsError)
+          throw rlsError
+        }
+
+        console.log('Payment status updated via RLS')
+      } catch (rlsError) {
+        console.error('RLS update failed:', rlsError)
+        throw rlsError
+      }
+    } else {
+      console.log('Payment status updated via database function')
+    }
+  } catch (error) {
+    console.error('Error updating payment status:', error)
+    throw error
+  }
+}
+
 // Export functionality for NextDNS integration
 export async function exportUserConfig(userId: string) {
   const [blockedSites, presets] = await Promise.all([

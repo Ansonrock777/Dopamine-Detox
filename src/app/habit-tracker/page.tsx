@@ -9,6 +9,7 @@ import { EditHabitForm } from "@/components/EditHabitForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PaymentProtection } from "@/components/PaymentProtection";
 import type { HabitWithStats, Habit } from "@/types";
 import { getTodayLocalDate } from "@/lib/timezone";
 
@@ -205,16 +206,17 @@ export default function HabitTrackerPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">
-            {habits.length} HABIT{habits.length !== 1 ? "S" : ""}
-          </h1>
-          <AddHabitForm onHabitAdded={handleHabitAdded} />
+    <PaymentProtection>
+      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">
+              {habits.length} HABIT{habits.length !== 1 ? "S" : ""}
+            </h1>
+            <AddHabitForm onHabitAdded={handleHabitAdded} />
+          </div>
         </div>
-      </div>
 
       {/* Overview Statistics */}
       <HabitStats />
@@ -321,6 +323,7 @@ export default function HabitTrackerPage() {
         onOpenChange={setEditModalOpen}
         onHabitUpdated={handleHabitUpdated}
       />
-    </div>
+      </div>
+    </PaymentProtection>
   );
 }

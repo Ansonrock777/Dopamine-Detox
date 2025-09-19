@@ -120,6 +120,96 @@ Blocking isn't enough. You need to replace the habit:
 
 ## 🗺️ Development Roadmap
 
+## 💳 Payment Gateway Integration Plan (Polar)
+
+### Overview
+Integrate Polar payment gateway to require one-time payment before NextDNS access. First 5 users only - simple pricing model.
+
+### Implementation Tasks
+
+#### 1. Database Schema Changes
+- [x] Add payment status fields to user profiles
+  - `subscription_status` (free, paid, expired)
+  - `payment_date` (when user paid)
+  - `polar_customer_id` (Polar customer reference)
+  - `polar_order_id` (order tracking)
+
+#### 2. Environment Setup
+- [x] Add Polar API keys to `.env.local`
+  - `POLAR_ACCESS_TOKEN` - Polar API access token
+  - `POLAR_WEBHOOK_SECRET` - For webhook verification
+  - `POLAR_ORGANIZATION_ID` - Your Polar organization ID
+  - `POLAR_PRODUCT_ID` - The product ID for the one-time payment
+
+#### 3. Payment Component Development
+- [x] Create `PaymentRequired` component
+  - Replace "Connect NextDNS" button with "Subscribe Now"
+  - Show pricing and payment call-to-action
+  - Integrate with Polar checkout flow
+- [x] Create Polar checkout integration
+  - Use Polar's JavaScript SDK for checkout
+  - Handle success/failure states
+  - Redirect flow management
+
+#### 4. Payment Protection
+- [x] Modify NextDNS connection flow
+  - Check payment status before allowing NextDNS features
+  - Block all NextDNS API calls for unpaid users
+  - Show payment required message in NextDNS section
+- [x] Protect all premium features
+  - Block habit tracking for free users
+  - Block website blocking features
+  - Show upgrade prompts throughout app
+
+#### 5. Webhook Integration
+- [x] Create Polar webhook handler (`/api/webhooks/polar`)
+  - Handle `order.created` events
+  - Validate webhook signatures
+  - Update user subscription status
+  - Send confirmation emails
+- [x] Database updates on payment
+  - Update user profile with payment status
+  - Log payment transactions
+  - Enable feature access
+
+#### 6. User Experience
+- [x] Payment success/failure pages
+- [ ] Email confirmation for successful payments
+- [x] Clear messaging about what's included
+- [x] Simple pricing display ($X one-time payment)
+
+#### 7. Webhook Configuration
+- [x] Deploy app to production (Vercel recommended)
+- [x] Configure Polar webhook URL: `https://your-domain.com/api/webhooks/polar`
+- [x] Subscribe to webhook events in Polar dashboard:
+  - `order.created` - When payment is completed
+  - `checkout.completed` - Alternative payment completion event
+  - `order.failed` - For failed payments (optional)
+- [x] Copy webhook secret from Polar and add to `.env.local`:
+  - `POLAR_WEBHOOK_SECRET=whsec_your_webhook_secret_here`
+- [x] Test webhook with Polar's test webhook feature
+
+#### 8. Testing & Validation
+- [ ] Test payment flow end-to-end
+- [ ] Test webhook reliability
+- [ ] Verify feature access control
+- [ ] Test with Polar's sandbox environment
+
+### Technical Notes
+- **Payment Model**: One-time payment for lifetime access
+- **User Limit**: First 5 users only
+- **Integration**: Polar.sh payment platform
+- **Protection**: All NextDNS features locked behind payment
+- **Checkout**: Polar-hosted checkout experience
+
+### API Endpoints to Create
+- `GET /api/user/subscription` - Check user payment status
+- `POST /api/checkout/create` - Initialize Polar checkout
+- `POST /api/webhooks/polar` - Handle payment confirmations
+- `GET /api/admin/payments` - Admin view of payments (future)
+
+---
+
 ### Phase 1: NextDNS Business Plan Backend Integration (Weeks 1-4)
 **Goal**: Centralized profile management to prevent bypass attempts
 

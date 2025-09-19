@@ -2,22 +2,24 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { usePayment } from "@/hooks/usePayment";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Globe, 
-  Shield, 
-  Settings, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Globe,
+  Shield,
+  Settings,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Plus
 } from "lucide-react";
 import { toast } from "sonner";
 import type { NextDNSAccount, NextDNSCategory, NextDNSSyncLog } from "@/types";
 import { CategoryReflectionWall } from "@/components/CategoryReflectionWall";
+import { PaymentRequired } from "@/components/PaymentRequired";
 
 type NextDNSProfileConfig = {
   id: string;
@@ -38,6 +40,7 @@ type NextDNSProfileConfig = {
 
 export function NextDNSConfig() {
   const { user } = useAuth();
+  const { hasPaid, loading: paymentLoading } = usePayment();
   const [account, setAccount] = useState<NextDNSAccount | null>(null);
   const [categories, setCategories] = useState<NextDNSCategory[]>([]);
   const [syncLog, setSyncLog] = useState<NextDNSSyncLog[]>([]);
@@ -66,7 +69,7 @@ export function NextDNSConfig() {
   } | null>(null);
 
   const fetchData = useCallback(async () => {
-    if (!user) return;
+    if (!user || !hasPaid) return;
 
     try {
       const [accountRes, categoriesRes, syncLogRes, profileConfigRes] = await Promise.all([
@@ -135,13 +138,16 @@ export function NextDNSConfig() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, hasPaid]);
 
   useEffect(() => {
-    if (user) {
+    if (user && hasPaid) {
       fetchData();
+    } else if (user && !paymentLoading) {
+      // User is loaded but hasn't paid, stop loading
+      setLoading(false);
     }
-  }, [user, fetchData]);
+  }, [user, hasPaid, paymentLoading, fetchData]);
 
   // Handle automatic NextDNS connection 
   const handleConnectNextDNS = async () => {
@@ -298,7 +304,7 @@ export function NextDNSConfig() {
     }
   };
 
-  if (loading) {
+  if (loading || paymentLoading) {
     return (
       <Card className="bg-gray-900 border-gray-800">
         <CardContent className="flex items-center justify-center py-8">
@@ -309,6 +315,11 @@ export function NextDNSConfig() {
         </CardContent>
       </Card>
     );
+  }
+
+  // Show payment required if user hasn't paid
+  if (!hasPaid) {
+    return <PaymentRequired />;
   }
 
   return (
