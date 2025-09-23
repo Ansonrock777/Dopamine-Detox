@@ -19,7 +19,7 @@ export function PaymentRequired() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          priceAmount: 2900, // $29.00 in cents
+          priceAmount: 6600, // $66.00 in cents
           productName: 'Dopamine Detox Pro',
           productDescription: 'Lifetime access to network-level blocking'
         })
@@ -71,7 +71,7 @@ export function PaymentRequired() {
           {/* Pricing */}
           <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-lg p-6 mb-6">
             <div className="flex items-baseline justify-center space-x-2 mb-2">
-              <span className="text-4xl font-bold text-white">$29</span>
+              <span className="text-4xl font-bold text-white">$66</span>
               <span className="text-gray-400">one-time</span>
             </div>
             <Badge variant="secondary" className="bg-yellow-600 text-yellow-100">
@@ -137,7 +137,7 @@ export function PaymentRequired() {
             ) : (
               <CreditCard className="w-5 h-5 mr-2" />
             )}
-            {isProcessing ? 'Creating Checkout...' : 'Get Lifetime Access - $29'}
+            {isProcessing ? 'Creating Checkout...' : 'Get Lifetime Access - $66'}
           </Button>
 
           <p className="text-gray-500 text-xs mt-4">
