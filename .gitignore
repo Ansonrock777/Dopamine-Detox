@@ -36,8 +36,18 @@ next-env.d.ts
 # IDE
 .vscode/
 .idea/
+.Cursor/
 *.swp
 *.swo
+
+# MCP config (may contain secrets)
+.mcp.json
+
+# Supabase temp files
+supabase/.temp/
+
+# Claude Code
+.claude/
 
 # Logs
 logs
